@@ -2,11 +2,11 @@
 
 ## Active Track
 
-The next implementation track is the end-to-end plugin-to-bridge capture flow.
+The next implementation track is the bridge-backed MCP surface and capture quality expansion.
 
 ## Current Focus
 
-- Reuse the new runtime extraction layer to power plugin UI capture requests and bridge delivery.
+- Reuse the new runtime extraction layer and default bridge contract to expose richer capture retrieval through MCP.
 - Preserve current package boundaries:
   - `plugin` extracts runtime data
   - `ui-bridge` transports and stores captures
@@ -15,12 +15,12 @@ The next implementation track is the end-to-end plugin-to-bridge capture flow.
 
 ## Next Concrete Tasks
 
-1. Implement the plugin UI handshake that requests capture, posts the canonical document, and closes cleanly.
-2. Connect the plugin output to the local bridge storage and retrieval path.
-3. Add broader fixtures and manual verification notes for live Figma runtime edge cases before broadening MCP features.
+1. Add MCP tools that return the full latest document, registry slices, and capture diagnostics from the bridge.
+2. Expand fixtures and regression coverage for remote libraries, icons, ignored helpers, and variable-heavy selections.
+3. Write manual verification notes for live Figma plugin loading, bridge upload, and MCP retrieval.
 
 ## Exit Criteria
 
-- A plugin capture request can travel from the real Figma runtime through the local bridge and back out through the MCP surface.
+- The local bridge exposes enough bridge-backed data for downstream MCP clients without relying on fixture-only flows.
 - The captured result validates against `designDocumentSchema`.
 - Fixtures, tests, and manual notes cover the main preservation policy and runtime edge cases.

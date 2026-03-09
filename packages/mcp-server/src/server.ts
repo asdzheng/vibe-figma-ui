@@ -14,6 +14,7 @@ import {
 } from "@vibe-figma/schema";
 import {
   createFetchBridgeClient,
+  DEFAULT_BRIDGE_BASE_URL,
   type CaptureBridgeClient
 } from "@vibe-figma/ui-bridge";
 import { z } from "zod";
@@ -72,16 +73,14 @@ function toTextResult(payload: unknown) {
 
 function getBridgeClient(
   options: VibeMcpServerOptions
-): CaptureBridgeClient | undefined {
+): CaptureBridgeClient {
   if (options.bridgeClient) {
     return options.bridgeClient;
   }
 
-  if (options.bridgeBaseUrl) {
-    return createFetchBridgeClient({ baseUrl: options.bridgeBaseUrl });
-  }
-
-  return undefined;
+  return createFetchBridgeClient({
+    baseUrl: options.bridgeBaseUrl ?? DEFAULT_BRIDGE_BASE_URL
+  });
 }
 
 export function createToolSuite(options: VibeMcpServerOptions = {}) {
@@ -105,12 +104,6 @@ export function createToolSuite(options: VibeMcpServerOptions = {}) {
       };
     },
     async getLatestCapture(): Promise<LatestCaptureResult> {
-      if (!bridgeClient) {
-        throw new Error(
-          "Bridge client is not configured. Set VIBE_FIGMA_BRIDGE_URL or pass bridgeClient."
-        );
-      }
-
       const latestCapture = await bridgeClient.getLatestCapture();
 
       if (!latestCapture) {
@@ -154,7 +147,7 @@ export function createVibeMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: options.name ?? "vibe-figma-ui",
-    version: options.version ?? "0.2.0"
+    version: options.version ?? "0.3.0"
   });
   const tools = createToolSuite(options);
 

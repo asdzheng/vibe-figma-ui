@@ -29,22 +29,24 @@ Status legend:
 
 - `[done]` Build real Figma Plugin API capture service on top of the current plugin adapter structure.
 - `[done]` Add plugin-side extraction for bounds, layout, styles, variables, component refs, and overrides from actual Figma nodes.
-- `[doing]` Wire plugin UI messaging to an end-to-end capture request/response flow.
+- `[done]` Wire plugin UI messaging to an end-to-end capture request/response flow.
 
 ## Phase 5: Bridge and MCP Integration
 
-- `[doing]` Keep the local HTTP bridge as the transport contract to target.
-- `[doing]` Connect plugin UI output to the local bridge.
-- `[todo]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
+- `[done]` Keep the local HTTP bridge as the transport contract to target.
+- `[done]` Connect plugin UI output to the local bridge.
+- `[doing]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
+- `[done]` Add a runnable local bridge CLI and default bridge URL contract shared by plugin, bridge, and MCP layers.
 
 ## Phase 6: Fixtures and Quality
 
 - `[doing]` Expand fixtures beyond the initial sample capture.
 - `[done]` Add runtime extraction tests for styles, variables, layout, and design-system metadata.
+- `[done]` Add bridge flow tests for plugin UI messaging and browser preflight handling.
 - `[todo]` Add fixtures for icon normalization, helper-component inlining, ignored components, remote libraries, and variable modes.
 - `[todo]` Add manual verification notes for plugin runtime behavior where automation is limited.
 
 ## Phase 7: Packaging and Release Flow
 
 - `[done]` Establish commit, push, and release workflow.
-- `[todo]` Add repeatable packaging or distribution steps for the plugin and MCP server artifacts.
+- `[doing]` Add repeatable packaging or distribution steps for the plugin, bridge, and MCP server artifacts.

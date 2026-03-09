@@ -11,6 +11,7 @@
 - Add persistent local storage instead of memory-only storage.
 - Add capture history endpoints, not only latest capture.
 - Add basic authentication or local trust boundary notes if needed.
+- Add optional CLI flags or config file support beyond the default host and port env vars.
 
 ## MCP Server
 
@@ -27,5 +28,5 @@
 ## Packaging
 
 - Add plugin packaging instructions.
-- Add a documented local dev flow for bridge plus MCP server.
+- Add a documented local dev flow for plugin plus bridge plus MCP server.
 - Add release automation for package artifacts if needed later.

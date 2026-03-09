@@ -2,6 +2,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { AddressInfo } from "node:net";
 
 import { storedCaptureSchema, type CaptureBridgeClient, type CaptureStore } from "./contracts.js";
+import {
+  BRIDGE_CAPTURES_PATH,
+  BRIDGE_HEALTH_PATH,
+  BRIDGE_LATEST_CAPTURE_PATH,
+  DEFAULT_BRIDGE_HOST,
+  DEFAULT_BRIDGE_PORT
+} from "./constants.js";
 import { createMemoryCaptureStore } from "./store.js";
 
 export type BridgeHttpServer = {
@@ -23,9 +30,21 @@ function sendJson(
   payload: unknown
 ): void {
   response.writeHead(statusCode, {
+    "access-control-allow-headers": "content-type",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-origin": "*",
     "content-type": "application/json; charset=utf-8"
   });
   response.end(JSON.stringify(payload));
+}
+
+function sendNoContent(response: ServerResponse, statusCode: number): void {
+  response.writeHead(statusCode, {
+    "access-control-allow-headers": "content-type",
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-origin": "*"
+  });
+  response.end();
 }
 
 async function readRequestBody(request: IncomingMessage): Promise<string> {
@@ -44,21 +63,30 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
 export async function startBridgeHttpServer(
   options: StartBridgeHttpServerOptions = {}
 ): Promise<BridgeHttpServer> {
-  const host = options.host ?? "127.0.0.1";
+  const host = options.host ?? DEFAULT_BRIDGE_HOST;
   const store = options.store ?? createMemoryCaptureStore();
+  const port = options.port ?? DEFAULT_BRIDGE_PORT;
   const server = createServer(async (request, response) => {
     const requestUrl = new URL(
       request.url ?? "/",
-      `http://${request.headers.host ?? `${host}:${options.port ?? 0}`}`
+      `http://${request.headers.host ?? `${host}:${port}`}`
     );
 
     try {
-      if (request.method === "GET" && requestUrl.pathname === "/health") {
+      if (request.method === "OPTIONS") {
+        sendNoContent(response, 204);
+        return;
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === BRIDGE_HEALTH_PATH) {
         sendJson(response, 200, { ok: true });
         return;
       }
 
-      if (request.method === "GET" && requestUrl.pathname === "/captures/latest") {
+      if (
+        request.method === "GET" &&
+        requestUrl.pathname === BRIDGE_LATEST_CAPTURE_PATH
+      ) {
         const capture = await store.getLatest();
 
         if (!capture) {
@@ -70,7 +98,7 @@ export async function startBridgeHttpServer(
         return;
       }
 
-      if (request.method === "POST" && requestUrl.pathname === "/captures") {
+      if (request.method === "POST" && requestUrl.pathname === BRIDGE_CAPTURES_PATH) {
         const rawBody = await readRequestBody(request);
         const payload = rawBody.length > 0 ? (JSON.parse(rawBody) as unknown) : {};
         const storedCapture = await store.save(payload);
@@ -88,7 +116,7 @@ export async function startBridgeHttpServer(
   });
 
   await new Promise<void>((resolve) => {
-    server.listen(options.port ?? 0, host, resolve);
+    server.listen(port, host, resolve);
   });
 
   const address = server.address() as AddressInfo;
@@ -120,7 +148,7 @@ export function createFetchBridgeClient(options: {
 
   return {
     async getLatestCapture() {
-      const response = await fetchImpl(`${baseUrl}/captures/latest`);
+      const response = await fetchImpl(`${baseUrl}${BRIDGE_LATEST_CAPTURE_PATH}`);
 
       if (response.status === 404) {
         return null;
@@ -133,7 +161,7 @@ export function createFetchBridgeClient(options: {
       return storedCaptureSchema.parse((await response.json()) as unknown);
     },
     async uploadCapture(document) {
-      const response = await fetchImpl(`${baseUrl}/captures`, {
+      const response = await fetchImpl(`${baseUrl}${BRIDGE_CAPTURES_PATH}`, {
         body: JSON.stringify(document),
         headers: {
           "content-type": "application/json"

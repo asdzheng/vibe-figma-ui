@@ -13,9 +13,16 @@ export type {
 } from "./model.js";
 export {
   captureCurrentSelection,
+  initializePluginRuntimeWithApi,
   initializePluginRuntime,
   PLUGIN_VERSION
 } from "./main.js";
+export {
+  normalizeBridgeBaseUrl,
+  renderPluginUiHtml,
+  type PluginMainToUiMessage,
+  type PluginUiToMainMessage
+} from "./ui.js";
 export { buildSelectionCaptureFromRuntime } from "./runtime/capture.js";
 export { extractNodeFromRuntime } from "./runtime/extract-node.js";
 export { RuntimeRegistryCollector } from "./runtime/registry-collector.js";

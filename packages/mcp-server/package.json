@@ -1,11 +1,11 @@
 {
   "name": "@vibe-figma/mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "vibe-figma-mcp": "./dist/cli.js"
+    "vibe-figma-mcp": "./bin/vibe-figma-mcp.mjs"
   },
   "exports": {
     ".": {
@@ -13,7 +13,7 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": ["bin", "dist"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json"

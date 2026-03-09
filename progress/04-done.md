@@ -22,3 +22,6 @@
 - Wired the plugin runtime entrypoint to capture the current real selection through the shared adapter and document builder.
 - Added runtime-backed tests covering styles, variable modes, layout extraction, component refs, component property references, and preserved-instance metadata.
 - Re-verified `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm test`, and `corepack pnpm build`.
+- Wired the plugin UI message flow to request a capture, upload it to the local bridge, and close after a successful bridge write.
+- Added shared default bridge constants, CORS handling, and a `vibe-figma-bridge` CLI for running the bridge locally.
+- Added plugin runtime bridge tests and bridge preflight tests for browser-based uploads.

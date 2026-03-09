@@ -40,16 +40,19 @@ corepack pnpm build
 - Ordered component preservation policy engine with conservative defaults
 - Real plugin runtime capture path that extracts selection nodes, text, paints, effects, component metadata, styles, and variables from Figma-like runtime objects into the canonical document flow
 - Shared adapter that builds capture documents from normalized selection input
-- Local bridge that accepts `POST /captures` and serves `GET /captures/latest`
+- Plugin UI bridge flow that uploads canonical captures to the local HTTP bridge and closes cleanly after upload
+- Local bridge with default address `http://127.0.0.1:3845`, browser-safe CORS headers, `POST /captures`, and `GET /captures/latest`
 - MCP tools for:
   - validating a design document
   - loading the sample fixture capture
   - evaluating component policy rules
-  - fetching the latest bridge capture
+  - fetching the latest bridge capture from the default local bridge URL
 
 ## Notes
 
 - Fixtures live under `packages/fixtures/data` and are validated in tests.
 - Build output is emitted to each package's `dist/` directory.
 - The plugin package now includes runtime extraction modules plus a bootstrap path for capturing the active Figma selection.
-- The plugin UI to local bridge flow is the next integration step; the bridge and MCP layers are already structured for that handoff.
+- Start the local bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
+- Start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
+- The next integration step is to expand the bridge-backed MCP surface and add broader fixtures plus manual Figma verification notes.
