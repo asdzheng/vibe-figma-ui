@@ -11,6 +11,7 @@ Last updated: 2026-03-09
 - The plugin UI now uploads the captured canonical document to the local bridge over the shared default transport contract.
 - The bridge now persists recent captures to local disk, exposes capture history and by-id retrieval, and the MCP server can read both the latest and historical bridge-backed documents.
 - The repository now has a repeatable artifact-packaging script that emits a Figma-importable plugin bundle plus packed bridge and MCP tarballs under `artifacts/`.
+- `AGENTS.md` now records the recent implementation pitfalls around persisted writes, script argument parsing, strict Node-script linting, and packaging verification order.
 - The fixtures package now exposes named regression fixtures for preserved remote-library instances, icon normalization, helper inlining, ignored helpers, and variable-mode-heavy captures.
 - The MCP fixture tool can now load any checked-in fixture by name, and live Figma verification steps are documented under `progress/06-manual-verification.md`.
 - The current working branch is `codex/implements`.
@@ -28,6 +29,7 @@ Last updated: 2026-03-09
 - Added persistent bridge storage, capture history endpoints, and history-aware MCP retrieval by capture ID.
 - Added a repeatable `corepack pnpm package:artifacts` workflow and documented the local development flow for plugin, bridge, and MCP usage.
 - Added repository-specific best practices to `AGENTS.md` for TypeScript optional fields, plugin UI transport boundaries, shared bridge constants, CORS, workspace bins, and release publishing.
+- Captured the latest workflow pitfalls in `AGENTS.md` so future runs avoid regressions in persisted writes, Node utility scripts, `pnpm` argument passthrough, and packaging verification order.
 - Expanded checked-in regression fixtures to cover remote libraries, icon normalization, helper inlining, ignored helpers, and variable modes.
 - Added named fixture loading through `packages/fixtures` and `packages/mcp-server`.
 - Wrote live plugin-to-bridge-to-MCP manual verification notes and documented the current policy-injection boundary.

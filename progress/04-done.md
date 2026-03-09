@@ -37,3 +37,4 @@
 - Added a repeatable `corepack pnpm package:artifacts` workflow that emits a Figma plugin bundle plus packed bridge and MCP tarballs under `artifacts/`.
 - Added root convenience scripts for starting the bridge and MCP server during local development.
 - Documented the local development and artifact packaging flow in `README.md`.
+- Added new `AGENTS.md` lessons covering persisted-write safety, `pnpm` script argument parsing, strict Node-script linting, and build-before-package verification order.
