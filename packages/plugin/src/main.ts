@@ -6,7 +6,7 @@ import {
   type FigmaNodeLike
 } from "./adapter.js";
 
-export const PLUGIN_VERSION = "0.1.0";
+export const PLUGIN_VERSION = "0.1.1";
 
 export function captureCurrentSelection(): DesignDocument {
   if (typeof figma === "undefined") {

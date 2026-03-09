@@ -125,10 +125,34 @@ If push or release is blocked by missing auth, remote setup, or CI state, report
 - Do not create a second competing spec for the same behavior.
 - Keep AGENTS focused on process and engineering rules; keep product design in RFCs.
 
+## Progress Tracking Workflow
+
+Execution status for this repository lives under `progress/`.
+
+Before starting implementation work, read these files in order:
+
+1. `progress/00-current-status.md`
+2. `progress/01-implementation-plan.md`
+3. `progress/02-in-progress.md`
+4. `progress/03-backlog.md`
+5. `progress/05-issues.md`
+
+Use those files to continue the last known plan before starting new work.
+
+Update the relevant files in `progress/` whenever:
+
+- the active feature changes
+- the next recommended step changes
+- a task moves from planned to in progress
+- a task is completed
+- a blocker, risk, or issue is discovered or resolved
+
+Do not use `progress/` to duplicate RFC product requirements. It is for project
+execution state only.
+
 ## What Not To Do
 
 - Do not build large monolithic features when smaller modules are possible.
 - Do not mark work complete before tests pass.
 - Do not skip push or release steps for completed features unless blocked.
 - Do not duplicate schema rules here when they already exist in the RFCs.
-
