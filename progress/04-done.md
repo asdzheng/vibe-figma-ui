@@ -25,3 +25,4 @@
 - Wired the plugin UI message flow to request a capture, upload it to the local bridge, and close after a successful bridge write.
 - Added shared default bridge constants, CORS handling, and a `vibe-figma-bridge` CLI for running the bridge locally.
 - Added plugin runtime bridge tests and bridge preflight tests for browser-based uploads.
+- Captured repeated implementation pitfalls in `AGENTS.md` as repository best practices to avoid future regressions in transport, typing, packaging, and release workflow.

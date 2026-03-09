@@ -69,6 +69,21 @@ Do not make one layer re-implement another layer's job.
 - Do not silently flatten or discard design-system semantics.
 - Do not put large binary payloads into canonical JSON.
 
+## Repository Best Practices
+
+These rules were added from issues already hit during implementation and should
+be treated as defaults, not suggestions.
+
+- With `exactOptionalPropertyTypes`, do not pass explicit `undefined` into optional object properties. Compute values first and only add fields with conditional spreads when a value exists.
+- Keep Figma plugin main-thread code focused on runtime capture and message passing. Put localhost HTTP or browser-like network calls in the plugin UI iframe, not in the main plugin runtime.
+- Define shared bridge URLs, ports, and route paths once in `packages/ui-bridge` and import them elsewhere. Do not duplicate localhost strings or endpoint paths in `plugin` or `mcp-server`.
+- Any bridge endpoint that may be called from the plugin UI must support browser-style CORS and `OPTIONS` preflight handling, and that behavior must be covered by tests.
+- After adding or changing a workspace dependency, run a real `pnpm install`, not only lockfile updates, so local symlinks, package bins, and build resolution are actually refreshed.
+- Do not point package `bin` entries directly at generated `dist/` files. Use a committed wrapper script under `bin/` that imports the built output, so installs work even before the package is built.
+- When publishing GitHub releases, avoid shell-sensitive inline release notes. Write notes to a temporary file and use `gh release create --notes-file` or `gh release edit --notes-file`.
+- If runtime constraints cannot be fully automated, document the required manual verification steps in `progress/` before marking the feature complete.
+- When default transport contracts or process rules change, sync `AGENTS.md`, `progress/`, and any affected README guidance in the same change to avoid startup drift on the next run.
+
 ## Testing Rules
 
 A feature is not complete until the relevant tests pass.

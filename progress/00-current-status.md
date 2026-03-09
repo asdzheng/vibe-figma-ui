@@ -21,6 +21,7 @@ Last updated: 2026-03-09
 - Wired the plugin runtime entrypoint to the real selection capture path and added runtime-backed tests for layout, variable modes, and design-system metadata.
 - Wired the plugin UI message flow to upload canonical captures to the local bridge.
 - Added default bridge constants, CORS support, and a `vibe-figma-bridge` CLI for running the bridge locally.
+- Added repository-specific best practices to `AGENTS.md` for TypeScript optional fields, plugin UI transport boundaries, shared bridge constants, CORS, workspace bins, and release publishing.
 
 ## Recommended Next Focus
 

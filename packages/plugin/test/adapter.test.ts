@@ -9,7 +9,7 @@ describe("buildSelectionCapture", () => {
         id: "1:2",
         name: "Checkout"
       },
-      pluginVersion: "0.3.0",
+      pluginVersion: "0.3.1",
       selection: [
         {
           componentProperties: {
