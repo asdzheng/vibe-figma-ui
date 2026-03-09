@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T09:40:00.000Z",
+    "pluginVersion": "0.5.0",
+    "editorType": "figma",
+    "page": {
+      "id": "15:1",
+      "name": "Remote Library"
+    },
+    "selection": [
+      {
+        "id": "15:10",
+        "name": "Remote Library Example",
+        "type": "FRAME"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    },
+    "sourceFileKey": "remote-file-key"
+  },
+  "roots": [
+    {
+      "pluginNodeId": "15:10",
+      "restNodeId": "15:10",
+      "figmaType": "FRAME",
+      "kind": "frame",
+      "name": "Remote Library Example",
+      "bounds": {
+        "width": 360,
+        "height": 160
+      },
+      "layout": {
+        "position": "flow",
+        "mode": "column",
+        "gap": 16,
+        "padding": {
+          "top": 24,
+          "right": 24,
+          "bottom": 24,
+          "left": 24
+        }
+      },
+      "children": [
+        {
+          "pluginNodeId": "15:11",
+          "restNodeId": "15:11",
+          "figmaType": "INSTANCE",
+          "kind": "instance",
+          "name": "Button / Primary",
+          "bounds": {
+            "width": 180,
+            "height": 48
+          },
+          "designSystem": {
+            "componentRef": "component:button-primary",
+            "policy": "preserve",
+            "instance": {
+              "variant": {
+                "Size": "M",
+                "Tone": "Primary"
+              }
+            }
+          }
+        },
+        {
+          "pluginNodeId": "15:12",
+          "restNodeId": "15:12",
+          "figmaType": "TEXT",
+          "kind": "text",
+          "name": "Library Label",
+          "bounds": {
+            "width": 200,
+            "height": 20
+          },
+          "content": {
+            "text": {
+              "characters": "Primary CTA",
+              "textStyleRef": "style:text-label",
+              "fill": [
+                {
+                  "kind": "solid",
+                  "styleRef": "style:fill-brand",
+                  "tokenRef": "variable:color-brand-600"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "registries": {
+    "components": {
+      "component:button-primary": {
+        "ref": "component:button-primary",
+        "key": "button-primary",
+        "name": "Button / Primary",
+        "componentSetRef": "component-set:button",
+        "remote": true,
+        "library": {
+          "name": "Orbit DS"
+        },
+        "properties": {
+          "Size": {
+            "type": "VARIANT",
+            "variantOptions": ["S", "M", "L"]
+          },
+          "Tone": {
+            "type": "VARIANT",
+            "variantOptions": ["Primary", "Secondary"]
+          }
+        }
+      }
+    },
+    "componentSets": {
+      "component-set:button": {
+        "ref": "component-set:button",
+        "key": "button",
+        "name": "Button",
+        "remote": true,
+        "properties": {
+          "Size": {
+            "type": "VARIANT",
+            "variantOptions": ["S", "M", "L"]
+          }
+        }
+      }
+    },
+    "styles": {
+      "style:text-label": {
+        "ref": "style:text-label",
+        "name": "Text / Label",
+        "styleType": "TEXT",
+        "remote": true
+      },
+      "style:fill-brand": {
+        "ref": "style:fill-brand",
+        "name": "Fill / Brand",
+        "styleType": "PAINT",
+        "remote": true,
+        "boundVariables": {
+          "fills": "variable:color-brand-600"
+        },
+        "fallback": {
+          "paints": [
+            {
+              "type": "SOLID",
+              "color": {
+                "r": 0.078,
+                "g": 0.388,
+                "b": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "variables": {
+      "variable:color-brand-600": {
+        "ref": "variable:color-brand-600",
+        "id": "VariableID:brand-600",
+        "key": "brand-600",
+        "name": "color/brand/600",
+        "remote": true,
+        "resolvedType": "COLOR",
+        "collection": {
+          "id": "VariableCollectionId:brand",
+          "key": "brand",
+          "name": "Brand"
+        },
+        "modes": [
+          {
+            "modeId": "light",
+            "name": "Light",
+            "value": "#1463FF"
+          },
+          {
+            "modeId": "dark",
+            "name": "Dark",
+            "value": "#8FB4FF"
+          }
+        ],
+        "codeSyntax": {
+          "WEB": "var(--brand-600)"
+        }
+      }
+    },
+    "icons": {},
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": []
+  }
+}

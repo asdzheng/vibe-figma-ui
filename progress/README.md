@@ -16,6 +16,7 @@ Before starting new work, read these files in order:
 5. `progress/05-issues.md`
 
 Use `progress/04-done.md` when you need completion history.
+Use `progress/06-manual-verification.md` when you need the current live Figma verification checklist.
 
 ## File Purpose
 
@@ -25,6 +26,7 @@ Use `progress/04-done.md` when you need completion history.
 - `03-backlog.md`: not started yet
 - `04-done.md`: completed milestones and shipped items
 - `05-issues.md`: blockers, risks, and known gaps
+- `06-manual-verification.md`: live runtime verification checklist for plugin, bridge, and MCP integration
 
 ## Update Rules
 

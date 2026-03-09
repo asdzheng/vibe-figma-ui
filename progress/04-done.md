@@ -27,3 +27,6 @@
 - Added plugin runtime bridge tests and bridge preflight tests for browser-based uploads.
 - Expanded the MCP server with bridge-backed latest-document, registry-slice, and diagnostics tools.
 - Captured repeated implementation pitfalls in `AGENTS.md` as repository best practices to avoid future regressions in transport, typing, packaging, and release workflow.
+- Expanded `packages/fixtures` into a named regression fixture set covering remote-library preservation, icon normalization, helper inlining, ignored helpers, and variable modes.
+- Updated the MCP fixture tool so downstream clients can load any checked-in fixture by name.
+- Added `progress/06-manual-verification.md` with live Figma plugin, bridge, and MCP verification steps plus the current policy-injection boundary.

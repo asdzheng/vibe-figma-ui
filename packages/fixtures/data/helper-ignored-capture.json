@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T09:30:00.000Z",
+    "pluginVersion": "0.5.0",
+    "editorType": "figma",
+    "page": {
+      "id": "10:1",
+      "name": "Helpers"
+    },
+    "selection": [
+      {
+        "id": "10:44",
+        "name": "Annotation Helper",
+        "type": "INSTANCE"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    }
+  },
+  "roots": [],
+  "registries": {
+    "components": {
+      "component:annotation-helper": {
+        "ref": "component:annotation-helper",
+        "key": "annotation-helper",
+        "name": "Annotation Helper"
+      }
+    },
+    "componentSets": {},
+    "styles": {},
+    "variables": {},
+    "icons": {},
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": [
+      "Ignored instance \"Annotation Helper\" because explicit policy resolved to ignore."
+    ]
+  }
+}

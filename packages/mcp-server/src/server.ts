@@ -5,6 +5,9 @@ import {
   type ComponentPolicyContext
 } from "@vibe-figma/capture-core";
 import {
+  captureFixtureNames,
+  type CaptureFixtureName,
+  loadCaptureFixtureDocument,
   loadSampleCaptureDocument,
   loadSamplePolicyRules
 } from "@vibe-figma/fixtures";
@@ -89,8 +92,11 @@ export type LatestCaptureDiagnosticsResult = {
 
 export type FixtureCaptureResult = {
   document: unknown;
+  fixtureName: CaptureFixtureName;
   policyRules?: unknown;
 };
+
+const captureFixtureNameSchema = z.enum(captureFixtureNames);
 
 export type EvaluateComponentPolicyResult = {
   matchedRuleId?: string | undefined;
@@ -254,11 +260,17 @@ export function createToolSuite(options: VibeMcpServerOptions = {}) {
       };
     },
     async loadFixtureCapture(args: {
+      fixtureName?: CaptureFixtureName;
       includePolicyRules?: boolean;
     }): Promise<FixtureCaptureResult> {
-      const document = await loadSampleCaptureDocument();
+      const fixtureName = args.fixtureName ?? "sample";
+      const document =
+        fixtureName === "sample"
+          ? await loadSampleCaptureDocument()
+          : await loadCaptureFixtureDocument(fixtureName);
 
       return {
+        fixtureName,
         document,
         ...(args.includePolicyRules
           ? { policyRules: await loadSamplePolicyRules() }
@@ -284,7 +296,7 @@ export function createVibeMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: options.name ?? "vibe-figma-ui",
-    version: options.version ?? "0.4.0"
+    version: options.version ?? "0.5.0"
   });
   const tools = createToolSuite(options);
 
@@ -350,15 +362,19 @@ export function createVibeMcpServer(
   server.registerTool(
     "load_fixture_capture",
     {
-      description: "Load the checked-in sample capture fixture for local testing.",
+      description: "Load one of the checked-in capture fixtures for local testing.",
       inputSchema: z.object({
+        fixtureName: captureFixtureNameSchema.optional(),
         includePolicyRules: z.boolean().optional()
       })
     },
-    async ({ includePolicyRules }) =>
+    async ({ fixtureName, includePolicyRules }) =>
       toTextResult(
         await tools.loadFixtureCapture(
-          includePolicyRules === undefined ? {} : { includePolicyRules }
+          {
+            ...(fixtureName ? { fixtureName } : {}),
+            ...(includePolicyRules !== undefined ? { includePolicyRules } : {})
+          }
         )
       )
   );

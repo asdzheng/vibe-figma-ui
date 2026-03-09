@@ -40,11 +40,11 @@ Status legend:
 
 ## Phase 6: Fixtures and Quality
 
-- `[doing]` Expand fixtures beyond the initial sample capture.
+- `[done]` Expand fixtures beyond the initial sample capture.
 - `[done]` Add runtime extraction tests for styles, variables, layout, and design-system metadata.
 - `[done]` Add bridge flow tests for plugin UI messaging and browser preflight handling.
-- `[todo]` Add fixtures for icon normalization, helper-component inlining, ignored components, remote libraries, and variable modes.
-- `[todo]` Add manual verification notes for plugin runtime behavior where automation is limited.
+- `[done]` Add fixtures for icon normalization, helper-component inlining, ignored components, remote libraries, and variable modes.
+- `[done]` Add manual verification notes for plugin runtime behavior where automation is limited.
 
 ## Phase 7: Packaging and Release Flow
 

@@ -1,13 +1,26 @@
 import { describe, expect, test } from "vitest";
 
-import { loadSampleCaptureDocument } from "@vibe-figma/fixtures";
+import {
+  captureFixtureNames,
+  loadCaptureFixtureDocument,
+  loadSampleCaptureDocument
+} from "@vibe-figma/fixtures";
 import { designDocumentSchema } from "@vibe-figma/schema";
 
 describe("designDocumentSchema", () => {
-  test("accepts the checked-in sample capture", async () => {
-    const fixture = await loadSampleCaptureDocument();
+  test.each(captureFixtureNames)(
+    "accepts the checked-in %s capture fixture",
+    async (fixtureName) => {
+      const fixture = await loadCaptureFixtureDocument(fixtureName);
 
-    expect(designDocumentSchema.parse(fixture)).toMatchObject({
+      expect(designDocumentSchema.parse(fixture)).toMatchObject({
+        schemaVersion: "0.1"
+      });
+    }
+  );
+
+  test("accepts the checked-in sample capture", async () => {
+    await expect(loadSampleCaptureDocument()).resolves.toMatchObject({
       schemaVersion: "0.1"
     });
   });

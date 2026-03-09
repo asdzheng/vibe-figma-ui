@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T09:20:00.000Z",
+    "pluginVersion": "0.5.0",
+    "editorType": "figma",
+    "page": {
+      "id": "9:1",
+      "name": "Helpers"
+    },
+    "selection": [
+      {
+        "id": "9:10",
+        "name": "Auto Layout / Stack",
+        "type": "INSTANCE"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    }
+  },
+  "roots": [
+    {
+      "pluginNodeId": "9:10",
+      "restNodeId": "9:10",
+      "figmaType": "INSTANCE",
+      "kind": "frame",
+      "name": "Auto Layout / Stack",
+      "bounds": {
+        "width": 320,
+        "height": 72
+      },
+      "layout": {
+        "position": "flow",
+        "mode": "column",
+        "gap": 8,
+        "padding": {
+          "top": 12,
+          "right": 12,
+          "bottom": 12,
+          "left": 12
+        }
+      },
+      "children": [
+        {
+          "pluginNodeId": "9:11",
+          "restNodeId": "9:11",
+          "figmaType": "TEXT",
+          "kind": "text",
+          "name": "Stack Label",
+          "bounds": {
+            "width": 180,
+            "height": 20
+          },
+          "content": {
+            "text": {
+              "characters": "Inline helper content"
+            }
+          }
+        }
+      ],
+      "designSystem": {
+        "componentRef": "component:auto-layout-stack",
+        "policy": "inline"
+      },
+      "origin": {
+        "sourceComponentRef": "component:auto-layout-stack",
+        "sourceFigmaType": "INSTANCE",
+        "sourcePluginNodeId": "9:10",
+        "transform": "inlined-instance"
+      }
+    }
+  ],
+  "registries": {
+    "components": {
+      "component:auto-layout-stack": {
+        "ref": "component:auto-layout-stack",
+        "key": "auto-layout-stack",
+        "name": "Auto Layout / Stack"
+      }
+    },
+    "componentSets": {},
+    "styles": {},
+    "variables": {},
+    "icons": {},
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": []
+  }
+}

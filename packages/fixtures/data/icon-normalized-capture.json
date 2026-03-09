@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T09:10:00.000Z",
+    "pluginVersion": "0.5.0",
+    "editorType": "figma",
+    "page": {
+      "id": "5:1",
+      "name": "Icons"
+    },
+    "selection": [
+      {
+        "id": "5:22",
+        "name": "Icon/Search",
+        "type": "INSTANCE"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    }
+  },
+  "roots": [
+    {
+      "pluginNodeId": "5:22",
+      "restNodeId": "5:22",
+      "figmaType": "INSTANCE",
+      "kind": "icon",
+      "name": "Icon/Search",
+      "bounds": {
+        "width": 24,
+        "height": 24
+      },
+      "content": {
+        "icon": {
+          "iconRef": "icon:icon-search",
+          "name": "Icon/Search",
+          "size": {
+            "width": 24,
+            "height": 24
+          }
+        }
+      },
+      "designSystem": {
+        "componentRef": "component:icon-search",
+        "policy": "icon"
+      },
+      "origin": {
+        "sourceComponentRef": "component:icon-search",
+        "sourceFigmaType": "INSTANCE",
+        "sourcePluginNodeId": "5:22",
+        "transform": "normalized-icon"
+      }
+    }
+  ],
+  "registries": {
+    "components": {
+      "component:icon-search": {
+        "ref": "component:icon-search",
+        "key": "icon-search",
+        "name": "Icon/Search",
+        "componentSetRef": "component-set:icons",
+        "remote": true,
+        "library": {
+          "name": "system-icons"
+        }
+      }
+    },
+    "componentSets": {
+      "component-set:icons": {
+        "ref": "component-set:icons",
+        "key": "icons",
+        "name": "Icons",
+        "remote": true
+      }
+    },
+    "styles": {},
+    "variables": {},
+    "icons": {
+      "icon:icon-search": {
+        "ref": "icon:icon-search",
+        "componentRef": "component:icon-search",
+        "name": "Icon/Search",
+        "library": {
+          "name": "system-icons"
+        }
+      }
+    },
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": []
+  }
+}

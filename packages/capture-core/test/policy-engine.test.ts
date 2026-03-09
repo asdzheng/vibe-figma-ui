@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import { createDesignDocument, resolveComponentPolicy } from "@vibe-figma/capture-core";
-import { loadSamplePolicyRules } from "@vibe-figma/fixtures";
+import {
+  loadCaptureFixtureDocument,
+  loadSamplePolicyRules
+} from "@vibe-figma/fixtures";
 import {
   createEmptyRegistries,
   type DesignCapture,
@@ -130,5 +133,85 @@ describe("createDesignDocument", () => {
 
     expect(document.roots).toHaveLength(0);
     expect(document.diagnostics.warnings).toHaveLength(1);
+  });
+
+  test("inlines helper instances into their normalized children", async () => {
+    const expected = await loadCaptureFixtureDocument("helperInlined");
+    const componentRef = "component:auto-layout-stack";
+    const registries = createEmptyRegistries();
+
+    registries.components[componentRef] = {
+      key: "auto-layout-stack",
+      name: "Auto Layout / Stack",
+      ref: componentRef
+    };
+
+    const document = createDesignDocument({
+      capture: {
+        ...capture,
+        page: {
+          id: "9:1",
+          name: "Helpers"
+        },
+        pluginVersion: "0.5.0",
+        selection: [
+          {
+            id: "9:10",
+            name: "Auto Layout / Stack",
+            type: "INSTANCE"
+          }
+        ],
+        timestamp: "2026-03-09T09:20:00.000Z"
+      },
+      roots: [
+        {
+          bounds: {
+            height: 72,
+            width: 320
+          },
+          children: [
+            {
+              bounds: {
+                height: 20,
+                width: 180
+              },
+              content: {
+                text: {
+                  characters: "Inline helper content"
+                }
+              },
+              figmaType: "TEXT",
+              kind: "text",
+              name: "Stack Label",
+              pluginNodeId: "9:11",
+              restNodeId: "9:11"
+            }
+          ],
+          designSystem: {
+            componentRef,
+            policy: "inline"
+          },
+          figmaType: "INSTANCE",
+          kind: "instance",
+          layout: {
+            gap: 8,
+            mode: "column",
+            padding: {
+              bottom: 12,
+              left: 12,
+              right: 12,
+              top: 12
+            },
+            position: "flow"
+          },
+          name: "Auto Layout / Stack",
+          pluginNodeId: "9:10",
+          restNodeId: "9:10"
+        }
+      ],
+      registries
+    });
+
+    expect(document).toEqual(expected);
   });
 });

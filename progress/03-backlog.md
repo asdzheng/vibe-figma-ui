@@ -3,7 +3,6 @@
 ## Plugin Runtime
 
 - Expand runtime extraction coverage for additional live node families such as vectors, boolean operations, grids, and mixed text cases.
-- Document manual verification steps for remote library components, variables, and mixed binding edge cases.
 - Add asset and image registry population once the plugin-to-bridge path defines where binary-adjacent metadata should live.
 
 ## Bridge
@@ -23,7 +22,6 @@
 
 - Add golden fixtures for large selections and page-level capture.
 - Add regression tests for omitted defaults, compact output, and runtime extraction edge cases.
-- Add manual test notes for live plugin loading in Figma.
 
 ## Packaging
 

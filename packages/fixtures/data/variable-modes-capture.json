@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T09:50:00.000Z",
+    "pluginVersion": "0.5.0",
+    "editorType": "figma",
+    "page": {
+      "id": "20:1",
+      "name": "Variables"
+    },
+    "selection": [
+      {
+        "id": "20:10",
+        "name": "Variable Modes Example",
+        "type": "FRAME"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    }
+  },
+  "roots": [
+    {
+      "pluginNodeId": "20:10",
+      "restNodeId": "20:10",
+      "figmaType": "FRAME",
+      "kind": "frame",
+      "name": "Variable Modes Example",
+      "bounds": {
+        "width": 390,
+        "height": 180
+      },
+      "layout": {
+        "position": "flow",
+        "mode": "column",
+        "gap": 16,
+        "padding": {
+          "top": 24,
+          "right": 24,
+          "bottom": 24,
+          "left": 24
+        }
+      },
+      "appearance": {
+        "background": [
+          {
+            "kind": "solid",
+            "styleRef": "style:fill-surface",
+            "tokenRef": "variable:surface-background"
+          }
+        ]
+      },
+      "designSystem": {
+        "resolvedVariableModes": {
+          "VariableCollectionId:theme": "mode-dark",
+          "VariableCollectionId:density": "mode-compact"
+        }
+      },
+      "children": [
+        {
+          "pluginNodeId": "20:11",
+          "restNodeId": "20:11",
+          "figmaType": "TEXT",
+          "kind": "text",
+          "name": "Body",
+          "bounds": {
+            "width": 240,
+            "height": 24
+          },
+          "content": {
+            "text": {
+              "characters": "Dark mode with compact spacing",
+              "textStyleRef": "style:text-body",
+              "fill": [
+                {
+                  "kind": "solid",
+                  "styleRef": "style:fill-text-primary",
+                  "tokenRef": "variable:text-primary"
+                }
+              ]
+            }
+          },
+          "designSystem": {
+            "resolvedVariableModes": {
+              "VariableCollectionId:theme": "mode-dark"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "registries": {
+    "components": {},
+    "componentSets": {},
+    "styles": {
+      "style:fill-surface": {
+        "ref": "style:fill-surface",
+        "name": "Fill / Surface",
+        "styleType": "PAINT",
+        "boundVariables": {
+          "fills": "variable:surface-background"
+        }
+      },
+      "style:fill-text-primary": {
+        "ref": "style:fill-text-primary",
+        "name": "Fill / Text Primary",
+        "styleType": "PAINT",
+        "boundVariables": {
+          "fills": "variable:text-primary"
+        }
+      },
+      "style:text-body": {
+        "ref": "style:text-body",
+        "name": "Text / Body",
+        "styleType": "TEXT"
+      }
+    },
+    "variables": {
+      "variable:surface-background": {
+        "ref": "variable:surface-background",
+        "id": "VariableID:surface-background",
+        "key": "surface-background",
+        "name": "surface/background",
+        "resolvedType": "COLOR",
+        "collection": {
+          "id": "VariableCollectionId:theme",
+          "key": "theme",
+          "name": "Theme"
+        },
+        "modes": [
+          {
+            "modeId": "mode-light",
+            "name": "Light",
+            "value": "#FFFFFF"
+          },
+          {
+            "modeId": "mode-dark",
+            "name": "Dark",
+            "value": "#0B1220"
+          }
+        ],
+        "codeSyntax": {
+          "WEB": "var(--surface-background)"
+        }
+      },
+      "variable:text-primary": {
+        "ref": "variable:text-primary",
+        "id": "VariableID:text-primary",
+        "key": "text-primary",
+        "name": "text/primary",
+        "resolvedType": "COLOR",
+        "collection": {
+          "id": "VariableCollectionId:theme",
+          "key": "theme",
+          "name": "Theme"
+        },
+        "modes": [
+          {
+            "modeId": "mode-light",
+            "name": "Light",
+            "value": "#111827"
+          },
+          {
+            "modeId": "mode-dark",
+            "name": "Dark",
+            "value": "#F8FAFC"
+          }
+        ],
+        "codeSyntax": {
+          "WEB": "var(--text-primary)"
+        }
+      },
+      "variable:space-stack-gap": {
+        "ref": "variable:space-stack-gap",
+        "id": "VariableID:space-stack-gap",
+        "key": "space-stack-gap",
+        "name": "space/stack/gap",
+        "resolvedType": "FLOAT",
+        "collection": {
+          "id": "VariableCollectionId:density",
+          "key": "density",
+          "name": "Density"
+        },
+        "modes": [
+          {
+            "modeId": "mode-comfortable",
+            "name": "Comfortable",
+            "value": 24
+          },
+          {
+            "modeId": "mode-compact",
+            "name": "Compact",
+            "value": 16
+          }
+        ],
+        "codeSyntax": {
+          "WEB": "var(--space-stack-gap)"
+        }
+      }
+    },
+    "icons": {},
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": []
+  }
+}

@@ -3,7 +3,7 @@
 ## Current Known Gaps
 
 - The bridge currently stores only the latest capture in memory.
-- Live Figma manual verification notes are not written yet beyond the structural runtime tests.
+- The live plugin runtime still captures component instances with the default preserve behavior because component policy rule injection is not wired into the runtime flow yet.
 
 ## Risks
 

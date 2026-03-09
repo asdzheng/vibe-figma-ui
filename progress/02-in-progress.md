@@ -2,11 +2,12 @@
 
 ## Active Track
 
-The next implementation track is capture quality expansion and live verification notes.
+The next implementation track is bridge persistence and history beyond the
+latest in-memory capture.
 
 ## Current Focus
 
-- Expand fixtures and regression coverage now that the bridge-backed MCP surface can consume real latest-capture data.
+- Keep the existing bridge-backed flow stable while adding persisted storage and history-aware retrieval.
 - Preserve current package boundaries:
   - `plugin` extracts runtime data
   - `ui-bridge` transports and stores captures
@@ -15,12 +16,13 @@ The next implementation track is capture quality expansion and live verification
 
 ## Next Concrete Tasks
 
-1. Expand fixtures and regression coverage for remote libraries, icons, ignored helpers, and variable-heavy selections.
-2. Write manual verification notes for live Figma plugin loading, bridge upload, and MCP retrieval.
-3. Plan the next bridge storage step so MCP tools can evolve from latest-only reads to history-aware retrieval.
+1. Add persistent local storage for captures instead of latest-only memory storage.
+2. Expose bridge history endpoints so downstream clients can inspect more than the newest capture.
+3. Add history-aware MCP retrieval once the bridge contract supports it.
 
 ## Exit Criteria
 
-- The local bridge exposes enough bridge-backed data for downstream MCP clients without relying on fixture-only flows.
+- The bridge survives process restarts without losing captures needed by downstream MCP clients.
+- Downstream MCP clients can retrieve either the latest capture or a recent capture by history entry.
 - The captured result validates against `designDocumentSchema`.
-- Fixtures, tests, and manual notes cover the main preservation policy and runtime edge cases.
+- Packaging and local-dev guidance stay aligned with the new storage behavior.

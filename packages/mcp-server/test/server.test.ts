@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { loadSampleCaptureDocument, loadSamplePolicyRules } from "@vibe-figma/fixtures";
+import {
+  loadCaptureFixtureDocument,
+  loadSampleCaptureDocument,
+  loadSamplePolicyRules
+} from "@vibe-figma/fixtures";
 import { createToolSuite } from "@vibe-figma/mcp-server";
 import {
   createMemoryCaptureStore,
@@ -86,6 +90,27 @@ describe("MCP tool suite", () => {
     ).resolves.toEqual({
       matchedRuleId: "icon-library",
       policy: "icon"
+    });
+  });
+
+  test("loads named capture fixtures through the MCP tool suite", async () => {
+    const tools = createToolSuite();
+    const helperIgnored = await loadCaptureFixtureDocument("helperIgnored");
+
+    await expect(
+      tools.loadFixtureCapture({
+        fixtureName: "helperIgnored",
+        includePolicyRules: true
+      })
+    ).resolves.toEqual({
+      document: helperIgnored,
+      fixtureName: "helperIgnored",
+      policyRules: await loadSamplePolicyRules()
+    });
+
+    await expect(tools.loadFixtureCapture({})).resolves.toMatchObject({
+      document: await loadSampleCaptureDocument(),
+      fixtureName: "sample"
     });
   });
 });

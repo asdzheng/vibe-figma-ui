@@ -44,15 +44,16 @@ corepack pnpm build
 - Local bridge with default address `http://127.0.0.1:3845`, browser-safe CORS headers, `POST /captures`, and `GET /captures/latest`
 - MCP tools for:
   - validating a design document
-  - loading the sample fixture capture
+  - loading named regression fixtures for sample, remote-library, icon, helper, and variable-mode scenarios
   - evaluating component policy rules
   - fetching latest bridge-backed capture metadata, the full document, registry slices, and diagnostics from the default local bridge URL
 
 ## Notes
 
-- Fixtures live under `packages/fixtures/data` and are validated in tests.
+- Fixtures live under `packages/fixtures/data`, can be loaded by name through `load_fixture_capture`, and are validated in tests.
 - Build output is emitted to each package's `dist/` directory.
 - The plugin package now includes runtime extraction modules plus a bootstrap path for capturing the active Figma selection.
 - Start the local bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
 - Start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
-- The next integration steps are broader fixtures and manual Figma verification notes, followed by persistent bridge history beyond the in-memory latest capture.
+- Live Figma verification steps now live in `progress/06-manual-verification.md`.
+- The next integration steps are persistent bridge history beyond the in-memory latest capture and repeatable packaging or local-dev workflows.
