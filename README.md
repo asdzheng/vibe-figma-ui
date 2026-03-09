@@ -34,6 +34,23 @@ corepack pnpm test
 corepack pnpm build
 ```
 
+## Package Artifacts
+
+Build repeatable distributable outputs with:
+
+```bash
+corepack pnpm package:artifacts
+```
+
+That command rebuilds the workspace and writes these outputs under `artifacts/`:
+
+- `artifacts/plugin/`: Figma-importable plugin bundle containing `manifest.json`, `ui.html`, and `dist/`
+- `artifacts/npm/`: packed `.tgz` outputs for `@vibe-figma/ui-bridge` and `@vibe-figma/mcp-server`
+- `artifacts/manifest.json`: generated summary of the packaged outputs
+
+Override the target directory with `corepack pnpm package:artifacts -- --output-dir release-artifacts`.
+Skip the rebuild only if the current `dist/` output is already fresh with `--skip-build`.
+
 ## Current Capabilities
 
 - Canonical design JSON schema v0.1 with registry ref validation
@@ -57,4 +74,22 @@ corepack pnpm build
 - Override bridge storage with `VIBE_FIGMA_BRIDGE_STORE_PATH=/absolute/path/to/captures.json` and retention with `VIBE_FIGMA_BRIDGE_MAX_CAPTURES=100` when needed.
 - Start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
 - Live Figma verification steps now live in `progress/06-manual-verification.md`.
-- The next integration steps are repeatable packaging or local-dev workflows and broader runtime capture coverage.
+- The next integration steps are broader runtime capture coverage and deeper policy injection into the live plugin runtime.
+
+## Local Development Flow
+
+Use separate terminals so the bridge and MCP server stay available while you run the plugin in Figma:
+
+1. Run `corepack pnpm install`.
+2. Run `corepack pnpm build`.
+3. Start the local bridge with `corepack pnpm dev:bridge`.
+4. Start the MCP server with `corepack pnpm dev:mcp`.
+5. In Figma desktop, import `packages/plugin/manifest.json` for source-based development, or `artifacts/plugin/manifest.json` after running `corepack pnpm package:artifacts`.
+6. Run the plugin on a selection and inspect bridge history with `GET http://127.0.0.1:3845/captures` or MCP tools such as `get_capture_history`.
+
+Bridge runtime configuration currently stays on environment variables instead of extra CLI flags:
+
+- `VIBE_FIGMA_BRIDGE_HOST`
+- `VIBE_FIGMA_BRIDGE_PORT`
+- `VIBE_FIGMA_BRIDGE_STORE_PATH`
+- `VIBE_FIGMA_BRIDGE_MAX_CAPTURES`

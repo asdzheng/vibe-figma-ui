@@ -2,13 +2,13 @@
 
 ## Active Track
 
-The next implementation track is packaging and local development guidance for
-the plugin, bridge, and MCP server artifacts.
+The next implementation track is expanding live plugin runtime extraction
+coverage for additional Figma node families and mixed text edge cases.
 
 ## Current Focus
 
-- Keep the new persisted bridge history flow stable while documenting how it is
-  packaged, configured, and run locally.
+- Keep the new packaging and local development workflow stable while extending
+  runtime capture shape.
 - Preserve current package boundaries:
   - `plugin` captures runtime data
   - `ui-bridge` transports and stores captures
@@ -18,12 +18,12 @@ the plugin, bridge, and MCP server artifacts.
 
 ## Next Concrete Tasks
 
-1. Add repeatable packaging steps for plugin, bridge, and MCP deliverables.
-2. Document the local development flow for running plugin, bridge, and MCP together.
-3. Decide whether the bridge CLI needs extra config flags beyond the current environment-variable controls.
+1. Add runtime extraction coverage for vectors, boolean operations, and layout grids.
+2. Handle mixed-text edge cases without regressing deterministic capture output.
+3. Add fixtures and tests for larger selections or page-level captures once those node families are supported.
 
 ## Exit Criteria
 
-- A contributor can build and run the plugin, bridge, and MCP server locally from documented steps.
-- Packaging instructions stay aligned with the committed bin wrappers and persisted bridge storage behavior.
-- The documented flow includes where captures are stored and how to override local bridge settings.
+- Live plugin capture handles the additional node families without schema regressions.
+- New runtime output stays deterministic in tests and fixtures.
+- Bridge and MCP consumers continue to accept the expanded capture shape without duplicate logic.

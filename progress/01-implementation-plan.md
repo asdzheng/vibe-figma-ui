@@ -50,4 +50,4 @@ Status legend:
 ## Phase 7: Packaging and Release Flow
 
 - `[done]` Establish commit, push, and release workflow.
-- `[doing]` Add repeatable packaging or distribution steps for the plugin, bridge, and MCP server artifacts.
+- `[done]` Add repeatable packaging or distribution steps for the plugin, bridge, and MCP server artifacts.

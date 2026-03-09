@@ -8,11 +8,12 @@ verified against a real Figma runtime.
 ## Preflight
 
 1. Run `corepack pnpm build`.
-2. Optionally set `VIBE_FIGMA_BRIDGE_STORE_PATH` if you want the bridge to persist somewhere other than `~/.vibe-figma-ui/captures.json`.
-3. Start the bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
-4. Confirm the bridge startup log prints the storage path it is using.
-5. Optionally start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
-6. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`.
+2. Optionally run `corepack pnpm package:artifacts` if you want to verify the packaged plugin bundle under `artifacts/plugin/`.
+3. Optionally set `VIBE_FIGMA_BRIDGE_STORE_PATH` if you want the bridge to persist somewhere other than `~/.vibe-figma-ui/captures.json`.
+4. Start the bridge with `corepack pnpm dev:bridge`.
+5. Confirm the bridge startup log prints the storage path it is using.
+6. Optionally start the MCP server with `corepack pnpm dev:mcp`.
+7. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`, or import `artifacts/plugin/manifest.json` if you are verifying the packaged bundle.
 
 ## Scenario 1: Preserved Remote Library Instance
 

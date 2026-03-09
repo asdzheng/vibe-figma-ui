@@ -153,7 +153,7 @@ describe("createDesignDocument", () => {
           id: "9:1",
           name: "Helpers"
         },
-        pluginVersion: "0.6.0",
+        pluginVersion: "0.7.0",
         selection: [
           {
             id: "9:10",

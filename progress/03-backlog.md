@@ -22,6 +22,4 @@
 
 ## Packaging
 
-- Add plugin packaging instructions.
-- Add a documented local dev flow for plugin plus bridge plus MCP server.
 - Add release automation for package artifacts if needed later.

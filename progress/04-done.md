@@ -34,3 +34,6 @@
 - Added bridge history endpoints plus by-id capture retrieval and wired matching fetch-client helpers.
 - Expanded the MCP server with capture-history and capture-by-id tools on top of the persisted bridge contract.
 - Re-verified `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm test`, and `corepack pnpm build` after the persisted history change.
+- Added a repeatable `corepack pnpm package:artifacts` workflow that emits a Figma plugin bundle plus packed bridge and MCP tarballs under `artifacts/`.
+- Added root convenience scripts for starting the bridge and MCP server during local development.
+- Documented the local development and artifact packaging flow in `README.md`.

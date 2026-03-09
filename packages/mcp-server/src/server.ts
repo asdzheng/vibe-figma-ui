@@ -341,7 +341,7 @@ export function createVibeMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: options.name ?? "vibe-figma-ui",
-    version: options.version ?? "0.6.0"
+    version: options.version ?? "0.7.0"
   });
   const tools = createToolSuite(options);
 

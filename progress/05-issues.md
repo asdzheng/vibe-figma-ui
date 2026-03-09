@@ -3,6 +3,7 @@
 ## Current Known Gaps
 
 - The live plugin runtime still captures component instances with the default preserve behavior because component policy rule injection is not wired into the runtime flow yet.
+- The live plugin runtime does not yet cover vectors, boolean operations, layout grids, or mixed-text edge cases with the same depth as the current frame/text/component path.
 
 ## Risks
 
