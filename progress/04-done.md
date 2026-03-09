@@ -18,3 +18,7 @@
 - Committed, pushed branch `codex/implements`, and published release `v0.1.0`.
 - Verified the progress-tracking change with `corepack pnpm lint` and `corepack pnpm test`.
 - Published release `v0.1.1` for the progress-tracking workflow update.
+- Implemented plugin runtime extraction modules for real Figma nodes, text content, paints, effects, style registries, variable registries, and component metadata.
+- Wired the plugin runtime entrypoint to capture the current real selection through the shared adapter and document builder.
+- Added runtime-backed tests covering styles, variable modes, layout extraction, component refs, component property references, and preserved-instance metadata.
+- Re-verified `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm test`, and `corepack pnpm build`.

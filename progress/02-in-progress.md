@@ -2,29 +2,25 @@
 
 ## Active Track
 
-The next implementation track is the real plugin capture path.
+The next implementation track is the end-to-end plugin-to-bridge capture flow.
 
 ## Current Focus
 
-- Build a plugin-side extraction layer that reads actual Figma Plugin API nodes and maps them into the canonical `schema` package types.
+- Reuse the new runtime extraction layer to power plugin UI capture requests and bridge delivery.
 - Preserve current package boundaries:
   - `plugin` extracts runtime data
-  - `capture-core` normalizes
+  - `ui-bridge` transports and stores captures
+  - `capture-core` normalizes and validates
   - `schema` validates
 
 ## Next Concrete Tasks
 
-1. Introduce plugin capture modules for:
-   - node traversal
-   - bounds/layout extraction
-   - appearance extraction
-   - text extraction
-   - component and component set registry extraction
-2. Decide where plugin-only raw data types stop and canonical normalization begins.
-3. Add fixtures and tests for real capture edge cases before broadening MCP features.
+1. Implement the plugin UI handshake that requests capture, posts the canonical document, and closes cleanly.
+2. Connect the plugin output to the local bridge storage and retrieval path.
+3. Add broader fixtures and manual verification notes for live Figma runtime edge cases before broadening MCP features.
 
 ## Exit Criteria
 
-- The plugin can capture the current selection from real Figma runtime nodes.
-- The result validates against `designDocumentSchema`.
-- Fixtures and tests cover the main preservation policy paths.
+- A plugin capture request can travel from the real Figma runtime through the local bridge and back out through the MCP surface.
+- The captured result validates against `designDocumentSchema`.
+- Fixtures, tests, and manual notes cover the main preservation policy and runtime edge cases.

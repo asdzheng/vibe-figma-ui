@@ -38,7 +38,8 @@ corepack pnpm build
 
 - Canonical design JSON schema v0.1 with registry ref validation
 - Ordered component preservation policy engine with conservative defaults
-- Figma-like node adapter that builds capture documents from selection input
+- Real plugin runtime capture path that extracts selection nodes, text, paints, effects, component metadata, styles, and variables from Figma-like runtime objects into the canonical document flow
+- Shared adapter that builds capture documents from normalized selection input
 - Local bridge that accepts `POST /captures` and serves `GET /captures/latest`
 - MCP tools for:
   - validating a design document
@@ -50,6 +51,5 @@ corepack pnpm build
 
 - Fixtures live under `packages/fixtures/data` and are validated in tests.
 - Build output is emitted to each package's `dist/` directory.
-- The plugin package currently provides a minimal manifest, runtime bootstrap,
-  and adapter layer; full Figma production wiring can be layered on top of the
-  existing module boundaries.
+- The plugin package now includes runtime extraction modules plus a bootstrap path for capturing the active Figma selection.
+- The plugin UI to local bridge flow is the next integration step; the bridge and MCP layers are already structured for that handoff.

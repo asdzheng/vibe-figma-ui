@@ -2,10 +2,9 @@
 
 ## Plugin Runtime
 
-- Extract real variable bindings and resolved variable modes.
-- Extract style metadata and bound variables from the Plugin API.
-- Capture text overrides and boolean overrides from preserved instances.
-- Capture instance swap targets and richer variant/property metadata.
+- Expand runtime extraction coverage for additional live node families such as vectors, boolean operations, grids, and mixed text cases.
+- Document manual verification steps for remote library components, variables, and mixed binding edge cases.
+- Add asset and image registry population once the plugin-to-bridge path defines where binary-adjacent metadata should live.
 
 ## Bridge
 
@@ -22,7 +21,7 @@
 ## Fixtures and Testing
 
 - Add golden fixtures for large selections and page-level capture.
-- Add regression tests for omitted defaults and compact output.
+- Add regression tests for omitted defaults, compact output, and runtime extraction edge cases.
 - Add manual test notes for live plugin loading in Figma.
 
 ## Packaging

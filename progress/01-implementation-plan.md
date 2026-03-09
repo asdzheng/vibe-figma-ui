@@ -27,19 +27,20 @@ Status legend:
 
 ## Phase 4: Runtime Adapters
 
-- `[doing]` Build real Figma Plugin API capture service on top of the current plugin adapter structure.
-- `[todo]` Add plugin-side extraction for bounds, layout, styles, variables, component refs, and overrides from actual Figma nodes.
-- `[todo]` Wire plugin UI messaging to an end-to-end capture request/response flow.
+- `[done]` Build real Figma Plugin API capture service on top of the current plugin adapter structure.
+- `[done]` Add plugin-side extraction for bounds, layout, styles, variables, component refs, and overrides from actual Figma nodes.
+- `[doing]` Wire plugin UI messaging to an end-to-end capture request/response flow.
 
 ## Phase 5: Bridge and MCP Integration
 
 - `[doing]` Keep the local HTTP bridge as the transport contract to target.
-- `[todo]` Connect plugin UI output to the local bridge.
+- `[doing]` Connect plugin UI output to the local bridge.
 - `[todo]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
 
 ## Phase 6: Fixtures and Quality
 
 - `[doing]` Expand fixtures beyond the initial sample capture.
+- `[done]` Add runtime extraction tests for styles, variables, layout, and design-system metadata.
 - `[todo]` Add fixtures for icon normalization, helper-component inlining, ignored components, remote libraries, and variable modes.
 - `[todo]` Add manual verification notes for plugin runtime behavior where automation is limited.
 

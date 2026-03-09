@@ -1,30 +1,32 @@
 import type { DesignDocument } from "@vibe-figma/schema";
 
-import {
-  buildSelectionCapture,
-  type BuildSelectionCaptureInput,
-  type FigmaNodeLike
-} from "./adapter.js";
+import type { BuildSelectionCaptureInput } from "./model.js";
+import { buildSelectionCaptureFromRuntime } from "./runtime/capture.js";
+import type { RuntimePluginApi, RuntimeSceneNode } from "./runtime/types.js";
 
-export const PLUGIN_VERSION = "0.1.1";
+export const PLUGIN_VERSION = "0.2.0";
 
 export function captureCurrentSelection(): DesignDocument {
   if (typeof figma === "undefined") {
     throw new Error("Figma runtime is not available.");
   }
 
-  return buildSelectionCapture({
+  return buildSelectionCaptureFromRuntime({
     page: {
       id: figma.currentPage.id,
       name: figma.currentPage.name
     },
+    pluginApi: figma as unknown as RuntimePluginApi,
     pluginVersion: PLUGIN_VERSION,
-    selection: figma.currentPage.selection as unknown as readonly FigmaNodeLike[]
+    selection: figma.currentPage.selection as unknown as readonly RuntimeSceneNode[]
   });
 }
 
 export function initializePluginRuntime(
-  buildInput?: Omit<BuildSelectionCaptureInput, "page" | "pluginVersion" | "selection">
+  buildInput?: Omit<
+    BuildSelectionCaptureInput,
+    "page" | "pluginVersion" | "registries" | "selection"
+  >
 ): void {
   if (typeof figma === "undefined") {
     return;
@@ -43,13 +45,15 @@ export function initializePluginRuntime(
       "type" in message &&
       message.type === "capture:selection"
     ) {
-      const document = buildSelectionCapture({
+      const document = buildSelectionCaptureFromRuntime({
         page: {
           id: figma.currentPage.id,
           name: figma.currentPage.name
         },
+        pluginApi: figma as unknown as RuntimePluginApi,
         pluginVersion: PLUGIN_VERSION,
-        selection: figma.currentPage.selection as unknown as readonly FigmaNodeLike[],
+        selection:
+          figma.currentPage.selection as unknown as readonly RuntimeSceneNode[],
         ...buildInput
       });
 
