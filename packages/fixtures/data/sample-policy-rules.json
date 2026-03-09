@@ -1,0 +1,23 @@
+[
+  {
+    "id": "icon-library",
+    "priority": 100,
+    "match": {
+      "libraryNameRegex": ["(^|/)icons?$", "(^|/)system-icons?$"],
+      "componentNameRegex": ["(^|/)(icon|ic)/"]
+    },
+    "policy": "icon",
+    "reason": "normalize icon instances into icon refs"
+  },
+  {
+    "id": "layout-helpers",
+    "priority": 200,
+    "match": {
+      "componentNameRegex": [
+        "(^|/)(spacer|gap|stack|inset|padding|grid cell|content wrapper)($|/)"
+      ]
+    },
+    "policy": "inline",
+    "reason": "treat layout helpers as resolved layout"
+  }
+]
