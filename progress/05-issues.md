@@ -3,7 +3,6 @@
 ## Current Known Gaps
 
 - The bridge currently stores only the latest capture in memory.
-- The MCP server currently exposes only minimal bridge-backed metadata and not the full capture-management surface.
 - Live Figma manual verification notes are not written yet beyond the structural runtime tests.
 
 ## Risks

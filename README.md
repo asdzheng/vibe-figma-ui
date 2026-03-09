@@ -16,7 +16,7 @@ This repository is a `pnpm` monorepo with six packages:
 - `packages/capture-core`: pure normalization and component-policy evaluation
 - `packages/plugin`: Figma runtime adapter and capture entrypoints
 - `packages/ui-bridge`: local HTTP bridge and in-memory capture store
-- `packages/mcp-server`: MCP server exposing validation, fixture, policy, and bridge tools
+- `packages/mcp-server`: MCP server exposing validation, fixture, policy, and bridge-backed retrieval tools
 - `packages/fixtures`: checked-in golden JSON fixtures for deterministic tests
 
 ## Requirements
@@ -46,7 +46,7 @@ corepack pnpm build
   - validating a design document
   - loading the sample fixture capture
   - evaluating component policy rules
-  - fetching the latest bridge capture from the default local bridge URL
+  - fetching latest bridge-backed capture metadata, the full document, registry slices, and diagnostics from the default local bridge URL
 
 ## Notes
 
@@ -55,4 +55,4 @@ corepack pnpm build
 - The plugin package now includes runtime extraction modules plus a bootstrap path for capturing the active Figma selection.
 - Start the local bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
 - Start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
-- The next integration step is to expand the bridge-backed MCP surface and add broader fixtures plus manual Figma verification notes.
+- The next integration steps are broader fixtures and manual Figma verification notes, followed by persistent bridge history beyond the in-memory latest capture.

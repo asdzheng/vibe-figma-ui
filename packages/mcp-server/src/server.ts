@@ -10,12 +10,16 @@ import {
 } from "@vibe-figma/fixtures";
 import {
   componentPolicyRulesSchema,
-  designDocumentSchema
+  designDocumentSchema,
+  type DesignCapture,
+  type DesignDocument,
+  type DesignRegistries
 } from "@vibe-figma/schema";
 import {
   createFetchBridgeClient,
   DEFAULT_BRIDGE_BASE_URL,
-  type CaptureBridgeClient
+  type CaptureBridgeClient,
+  type StoredCapture
 } from "@vibe-figma/ui-bridge";
 import { z } from "zod";
 
@@ -36,6 +40,51 @@ export type LatestCaptureResult = {
   captureId: string;
   receivedAt: string;
   schemaVersion: string;
+};
+
+const registrySliceNames = [
+  "assets",
+  "componentSets",
+  "components",
+  "icons",
+  "styles",
+  "variables"
+] as const;
+
+const registrySliceNameSchema = z.enum(registrySliceNames);
+
+export type RegistrySliceName = (typeof registrySliceNames)[number];
+
+export type CaptureRegistryCounts = Record<RegistrySliceName, number>;
+
+export type CaptureSummary = {
+  registryCounts: CaptureRegistryCounts;
+  rootCount: number;
+  selectionCount: number;
+  warningCount: number;
+};
+
+export type LatestCaptureDocumentResult = {
+  captureId: string;
+  document: DesignDocument;
+  receivedAt: string;
+  summary: CaptureSummary;
+};
+
+export type LatestCaptureRegistriesResult = {
+  captureId: string;
+  receivedAt: string;
+  registries: Partial<Pick<DesignRegistries, RegistrySliceName>>;
+  registryCounts: CaptureRegistryCounts;
+  requestedRegistries: RegistrySliceName[];
+};
+
+export type LatestCaptureDiagnosticsResult = {
+  capture: DesignCapture;
+  captureId: string;
+  diagnostics: DesignDocument["diagnostics"];
+  receivedAt: string;
+  summary: CaptureSummary;
 };
 
 export type FixtureCaptureResult = {
@@ -59,6 +108,60 @@ const componentPolicyContextSchema = z
     remote: z.boolean().optional()
   })
   .strict();
+
+function createRegistryCounts(registries: DesignRegistries): CaptureRegistryCounts {
+  return {
+    assets: Object.keys(registries.assets).length,
+    componentSets: Object.keys(registries.componentSets).length,
+    components: Object.keys(registries.components).length,
+    icons: Object.keys(registries.icons).length,
+    styles: Object.keys(registries.styles).length,
+    variables: Object.keys(registries.variables).length
+  };
+}
+
+function createCaptureSummary(document: DesignDocument): CaptureSummary {
+  return {
+    registryCounts: createRegistryCounts(document.registries),
+    rootCount: document.roots.length,
+    selectionCount: document.capture.selection.length,
+    warningCount: document.diagnostics.warnings.length
+  };
+}
+
+async function getRequiredLatestCapture(
+  bridgeClient: CaptureBridgeClient
+): Promise<StoredCapture> {
+  const latestCapture = await bridgeClient.getLatestCapture();
+
+  if (!latestCapture) {
+    throw new Error("No capture available from the local bridge.");
+  }
+
+  return latestCapture;
+}
+
+function pickRegistries(
+  registries: DesignRegistries,
+  requestedRegistries: readonly RegistrySliceName[]
+): Partial<Pick<DesignRegistries, RegistrySliceName>> {
+  const requested = new Set(requestedRegistries);
+
+  return {
+    ...(requested.has("assets") ? { assets: registries.assets } : {}),
+    ...(requested.has("componentSets")
+      ? { componentSets: registries.componentSets }
+      : {}),
+    ...(requested.has("components")
+      ? { components: registries.components }
+      : {}),
+    ...(requested.has("icons") ? { icons: registries.icons } : {}),
+    ...(requested.has("styles") ? { styles: registries.styles } : {}),
+    ...(requested.has("variables")
+      ? { variables: registries.variables }
+      : {})
+  };
+}
 
 function toTextResult(payload: unknown) {
   return {
@@ -104,16 +207,50 @@ export function createToolSuite(options: VibeMcpServerOptions = {}) {
       };
     },
     async getLatestCapture(): Promise<LatestCaptureResult> {
-      const latestCapture = await bridgeClient.getLatestCapture();
-
-      if (!latestCapture) {
-        throw new Error("No capture available from the local bridge.");
-      }
+      const latestCapture = await getRequiredLatestCapture(bridgeClient);
 
       return {
         captureId: latestCapture.id,
         receivedAt: latestCapture.receivedAt,
         schemaVersion: latestCapture.document.schemaVersion
+      };
+    },
+    async getLatestCaptureDiagnostics(): Promise<LatestCaptureDiagnosticsResult> {
+      const latestCapture = await getRequiredLatestCapture(bridgeClient);
+
+      return {
+        capture: latestCapture.document.capture,
+        captureId: latestCapture.id,
+        diagnostics: latestCapture.document.diagnostics,
+        receivedAt: latestCapture.receivedAt,
+        summary: createCaptureSummary(latestCapture.document)
+      };
+    },
+    async getLatestCaptureDocument(): Promise<LatestCaptureDocumentResult> {
+      const latestCapture = await getRequiredLatestCapture(bridgeClient);
+
+      return {
+        captureId: latestCapture.id,
+        document: latestCapture.document,
+        receivedAt: latestCapture.receivedAt,
+        summary: createCaptureSummary(latestCapture.document)
+      };
+    },
+    async getLatestCaptureRegistries(args: {
+      registries?: RegistrySliceName[];
+    }): Promise<LatestCaptureRegistriesResult> {
+      const latestCapture = await getRequiredLatestCapture(bridgeClient);
+      const requestedRegistries = args.registries ?? [...registrySliceNames];
+
+      return {
+        captureId: latestCapture.id,
+        receivedAt: latestCapture.receivedAt,
+        registries: pickRegistries(
+          latestCapture.document.registries,
+          requestedRegistries
+        ),
+        registryCounts: createRegistryCounts(latestCapture.document.registries),
+        requestedRegistries
       };
     },
     async loadFixtureCapture(args: {
@@ -147,7 +284,7 @@ export function createVibeMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: options.name ?? "vibe-figma-ui",
-    version: options.version ?? "0.3.1"
+    version: options.version ?? "0.4.0"
   });
   const tools = createToolSuite(options);
 
@@ -169,6 +306,45 @@ export function createVibeMcpServer(
       inputSchema: z.object({})
     },
     async () => toTextResult(await tools.getLatestCapture())
+  );
+
+  server.registerTool(
+    "get_latest_capture_document",
+    {
+      description:
+        "Fetch the full latest canonical design document from the local UI bridge.",
+      inputSchema: z.object({})
+    },
+    async () => toTextResult(await tools.getLatestCaptureDocument())
+  );
+
+  server.registerTool(
+    "get_latest_capture_registries",
+    {
+      description:
+        "Fetch selected registry slices from the latest bridge-backed capture.",
+      inputSchema: z
+        .object({
+          registries: z.array(registrySliceNameSchema).min(1).optional()
+        })
+        .strict()
+    },
+    async ({ registries }) =>
+      toTextResult(
+        await tools.getLatestCaptureRegistries(
+          registries ? { registries } : {}
+        )
+      )
+  );
+
+  server.registerTool(
+    "get_latest_capture_diagnostics",
+    {
+      description:
+        "Fetch capture metadata, diagnostics, and summary counts from the latest bridge-backed capture.",
+      inputSchema: z.object({})
+    },
+    async () => toTextResult(await tools.getLatestCaptureDiagnostics())
   );
 
   server.registerTool(

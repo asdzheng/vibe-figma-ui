@@ -2,11 +2,11 @@
 
 ## Active Track
 
-The next implementation track is the bridge-backed MCP surface and capture quality expansion.
+The next implementation track is capture quality expansion and live verification notes.
 
 ## Current Focus
 
-- Reuse the new runtime extraction layer and default bridge contract to expose richer capture retrieval through MCP.
+- Expand fixtures and regression coverage now that the bridge-backed MCP surface can consume real latest-capture data.
 - Preserve current package boundaries:
   - `plugin` extracts runtime data
   - `ui-bridge` transports and stores captures
@@ -15,9 +15,9 @@ The next implementation track is the bridge-backed MCP surface and capture quali
 
 ## Next Concrete Tasks
 
-1. Add MCP tools that return the full latest document, registry slices, and capture diagnostics from the bridge.
-2. Expand fixtures and regression coverage for remote libraries, icons, ignored helpers, and variable-heavy selections.
-3. Write manual verification notes for live Figma plugin loading, bridge upload, and MCP retrieval.
+1. Expand fixtures and regression coverage for remote libraries, icons, ignored helpers, and variable-heavy selections.
+2. Write manual verification notes for live Figma plugin loading, bridge upload, and MCP retrieval.
+3. Plan the next bridge storage step so MCP tools can evolve from latest-only reads to history-aware retrieval.
 
 ## Exit Criteria
 

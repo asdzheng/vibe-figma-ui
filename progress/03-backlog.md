@@ -15,9 +15,9 @@
 
 ## MCP Server
 
-- Add a tool to return the full latest canonical document, not only metadata.
-- Add tools for diagnostics, registry inspection, and policy explanation.
+- Add policy-explanation or rule-debugging tools if downstream clients need deeper capture reasoning.
 - Add prompt or resource endpoints if downstream clients benefit.
+- Add history-aware MCP tools once the bridge supports persisted capture storage.
 
 ## Fixtures and Testing
 

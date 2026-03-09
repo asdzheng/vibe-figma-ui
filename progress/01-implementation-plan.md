@@ -35,7 +35,7 @@ Status legend:
 
 - `[done]` Keep the local HTTP bridge as the transport contract to target.
 - `[done]` Connect plugin UI output to the local bridge.
-- `[doing]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
+- `[done]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
 - `[done]` Add a runnable local bridge CLI and default bridge URL contract shared by plugin, bridge, and MCP layers.
 
 ## Phase 6: Fixtures and Quality

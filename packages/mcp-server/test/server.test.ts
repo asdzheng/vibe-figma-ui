@@ -8,7 +8,7 @@ import {
 } from "@vibe-figma/ui-bridge";
 
 describe("MCP tool suite", () => {
-  test("validates documents and reads latest captures from the bridge", async () => {
+  test("validates documents and exposes bridge-backed capture tools", async () => {
     const document = await loadSampleCaptureDocument();
     const store = createMemoryCaptureStore();
     const bridgeClient = createStoreBackedBridgeClient(store);
@@ -23,6 +23,51 @@ describe("MCP tool suite", () => {
     });
     await expect(tools.getLatestCapture()).resolves.toMatchObject({
       schemaVersion: "0.1"
+    });
+    await expect(tools.getLatestCaptureDocument()).resolves.toMatchObject({
+      document: {
+        schemaVersion: "0.1"
+      },
+      summary: {
+        registryCounts: {
+          components: 1,
+          variables: 1
+        },
+        rootCount: 1,
+        selectionCount: 1,
+        warningCount: 0
+      }
+    });
+    await expect(
+      tools.getLatestCaptureRegistries({
+        registries: ["components", "variables"]
+      })
+    ).resolves.toMatchObject({
+      registries: {
+        components: {
+          "component:button-primary": {
+            ref: "component:button-primary"
+          }
+        },
+        variables: {
+          "variable:color-action-primary": {
+            ref: "variable:color-action-primary"
+          }
+        }
+      },
+      requestedRegistries: ["components", "variables"]
+    });
+    await expect(tools.getLatestCaptureDiagnostics()).resolves.toMatchObject({
+      diagnostics: {
+        warnings: []
+      },
+      summary: {
+        registryCounts: {
+          componentSets: 1,
+          styles: 1
+        },
+        warningCount: 0
+      }
     });
   });
 
