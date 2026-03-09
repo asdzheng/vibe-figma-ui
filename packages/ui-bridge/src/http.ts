@@ -1,15 +1,21 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { storedCaptureSchema, type CaptureBridgeClient, type CaptureStore } from "./contracts.js";
+import {
+  captureHistorySchema,
+  storedCaptureSchema,
+  type CaptureBridgeClient,
+  type CaptureStore
+} from "./contracts.js";
 import {
   BRIDGE_CAPTURES_PATH,
   BRIDGE_HEALTH_PATH,
   BRIDGE_LATEST_CAPTURE_PATH,
   DEFAULT_BRIDGE_HOST,
-  DEFAULT_BRIDGE_PORT
+  DEFAULT_BRIDGE_PORT,
+  getBridgeCapturePath
 } from "./constants.js";
-import { createMemoryCaptureStore } from "./store.js";
+import { createFileCaptureStore } from "./store.js";
 
 export type BridgeHttpServer = {
   baseUrl: string;
@@ -60,11 +66,25 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
   });
 }
 
+function parseCaptureListLimit(value: string | null): number | undefined {
+  if (value === null) {
+    return undefined;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    throw new Error(`Invalid capture list limit: ${value}`);
+  }
+
+  return parsedValue;
+}
+
 export async function startBridgeHttpServer(
   options: StartBridgeHttpServerOptions = {}
 ): Promise<BridgeHttpServer> {
   const host = options.host ?? DEFAULT_BRIDGE_HOST;
-  const store = options.store ?? createMemoryCaptureStore();
+  const store = options.store ?? createFileCaptureStore();
   const port = options.port ?? DEFAULT_BRIDGE_PORT;
   const server = createServer(async (request, response) => {
     const requestUrl = new URL(
@@ -91,6 +111,36 @@ export async function startBridgeHttpServer(
 
         if (!capture) {
           sendJson(response, 404, { error: "No capture available." });
+          return;
+        }
+
+        sendJson(response, 200, capture);
+        return;
+      }
+
+      if (request.method === "GET" && requestUrl.pathname === BRIDGE_CAPTURES_PATH) {
+        const captureListLimit = requestUrl.searchParams.has("limit")
+          ? parseCaptureListLimit(requestUrl.searchParams.get("limit"))
+          : undefined;
+        const captures = await store.list({
+          ...(captureListLimit !== undefined ? { limit: captureListLimit } : {})
+        });
+
+        sendJson(response, 200, captures);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        requestUrl.pathname.startsWith(`${BRIDGE_CAPTURES_PATH}/`)
+      ) {
+        const captureId = decodeURIComponent(
+          requestUrl.pathname.slice(`${BRIDGE_CAPTURES_PATH}/`.length)
+        );
+        const capture = await store.getById(captureId);
+
+        if (!capture) {
+          sendJson(response, 404, { error: "Capture not found." });
           return;
         }
 
@@ -147,6 +197,19 @@ export function createFetchBridgeClient(options: {
   const baseUrl = options.baseUrl.replace(/\/$/, "");
 
   return {
+    async getCaptureById(captureId) {
+      const response = await fetchImpl(`${baseUrl}${getBridgeCapturePath(captureId)}`);
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Bridge request failed with ${response.status}.`);
+      }
+
+      return storedCaptureSchema.parse((await response.json()) as unknown);
+    },
     async getLatestCapture() {
       const response = await fetchImpl(`${baseUrl}${BRIDGE_LATEST_CAPTURE_PATH}`);
 
@@ -159,6 +222,21 @@ export function createFetchBridgeClient(options: {
       }
 
       return storedCaptureSchema.parse((await response.json()) as unknown);
+    },
+    async listCaptures(listOptions = {}) {
+      const requestUrl = new URL(`${baseUrl}${BRIDGE_CAPTURES_PATH}`);
+
+      if (listOptions.limit !== undefined) {
+        requestUrl.searchParams.set("limit", String(listOptions.limit));
+      }
+
+      const response = await fetchImpl(requestUrl.toString());
+
+      if (!response.ok) {
+        throw new Error(`Bridge request failed with ${response.status}.`);
+      }
+
+      return captureHistorySchema.parse((await response.json()) as unknown);
     },
     async uploadCapture(document) {
       const response = await fetchImpl(`${baseUrl}${BRIDGE_CAPTURES_PATH}`, {

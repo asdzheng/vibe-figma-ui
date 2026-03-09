@@ -37,6 +37,7 @@ Status legend:
 - `[done]` Connect plugin UI output to the local bridge.
 - `[done]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
 - `[done]` Add a runnable local bridge CLI and default bridge URL contract shared by plugin, bridge, and MCP layers.
+- `[done]` Add persistent bridge storage, capture history endpoints, and history-aware MCP retrieval by capture ID.
 
 ## Phase 6: Fixtures and Quality
 

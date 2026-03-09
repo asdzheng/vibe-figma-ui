@@ -2,27 +2,28 @@
 
 ## Active Track
 
-The next implementation track is bridge persistence and history beyond the
-latest in-memory capture.
+The next implementation track is packaging and local development guidance for
+the plugin, bridge, and MCP server artifacts.
 
 ## Current Focus
 
-- Keep the existing bridge-backed flow stable while adding persisted storage and history-aware retrieval.
+- Keep the new persisted bridge history flow stable while documenting how it is
+  packaged, configured, and run locally.
 - Preserve current package boundaries:
-  - `plugin` extracts runtime data
+  - `plugin` captures runtime data
   - `ui-bridge` transports and stores captures
   - `capture-core` normalizes and validates
   - `schema` validates
+  - `mcp-server` exposes downstream tools
 
 ## Next Concrete Tasks
 
-1. Add persistent local storage for captures instead of latest-only memory storage.
-2. Expose bridge history endpoints so downstream clients can inspect more than the newest capture.
-3. Add history-aware MCP retrieval once the bridge contract supports it.
+1. Add repeatable packaging steps for plugin, bridge, and MCP deliverables.
+2. Document the local development flow for running plugin, bridge, and MCP together.
+3. Decide whether the bridge CLI needs extra config flags beyond the current environment-variable controls.
 
 ## Exit Criteria
 
-- The bridge survives process restarts without losing captures needed by downstream MCP clients.
-- Downstream MCP clients can retrieve either the latest capture or a recent capture by history entry.
-- The captured result validates against `designDocumentSchema`.
-- Packaging and local-dev guidance stay aligned with the new storage behavior.
+- A contributor can build and run the plugin, bridge, and MCP server locally from documented steps.
+- Packaging instructions stay aligned with the committed bin wrappers and persisted bridge storage behavior.
+- The documented flow includes where captures are stored and how to override local bridge settings.

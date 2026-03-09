@@ -9,7 +9,7 @@ Last updated: 2026-03-09
 - Progress tracking docs and startup workflow are now in place.
 - The plugin now captures the current selection from real Figma runtime nodes and merges style, variable, and component registries into the canonical document flow.
 - The plugin UI now uploads the captured canonical document to the local bridge over the shared default transport contract.
-- The bridge and MCP server now share the same default local bridge URL, and the MCP server can now read the latest bridge-backed document, registry slices, and diagnostics.
+- The bridge now persists recent captures to local disk, exposes capture history and by-id retrieval, and the MCP server can read both the latest and historical bridge-backed documents.
 - The fixtures package now exposes named regression fixtures for preserved remote-library instances, icon normalization, helper inlining, ignored helpers, and variable-mode-heavy captures.
 - The MCP fixture tool can now load any checked-in fixture by name, and live Figma verification steps are documented under `progress/06-manual-verification.md`.
 - The current working branch is `codex/implements`.
@@ -24,6 +24,7 @@ Last updated: 2026-03-09
 - Wired the plugin UI message flow to upload canonical captures to the local bridge.
 - Added default bridge constants, CORS support, and a `vibe-figma-bridge` CLI for running the bridge locally.
 - Added richer bridge-backed MCP tools for latest-document retrieval, registry inspection, and diagnostics on top of the local bridge.
+- Added persistent bridge storage, capture history endpoints, and history-aware MCP retrieval by capture ID.
 - Added repository-specific best practices to `AGENTS.md` for TypeScript optional fields, plugin UI transport boundaries, shared bridge constants, CORS, workspace bins, and release publishing.
 - Expanded checked-in regression fixtures to cover remote libraries, icon normalization, helper inlining, ignored helpers, and variable modes.
 - Added named fixture loading through `packages/fixtures` and `packages/mcp-server`.
@@ -31,14 +32,13 @@ Last updated: 2026-03-09
 
 ## Recommended Next Focus
 
-Add bridge persistence and capture history beyond the latest in-memory store,
-then tighten packaging and local development instructions.
+Tighten packaging and local development instructions for plugin, bridge, and MCP workflows.
 
 ## Immediate Next Steps
 
-1. Add persistent storage and history support beyond the latest in-memory capture.
-2. Add history-aware MCP tools once the bridge can read more than the latest document.
-3. Add packaging and local-dev documentation for plugin, bridge, and MCP workflows.
+1. Add packaging and distribution steps for plugin, bridge, and MCP artifacts.
+2. Add a documented local development flow for running plugin, bridge, and MCP together.
+3. Expand runtime extraction coverage for additional node families once packaging guidance is stable.
 
 ## Latest Verification
 

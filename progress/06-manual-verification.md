@@ -8,9 +8,11 @@ verified against a real Figma runtime.
 ## Preflight
 
 1. Run `corepack pnpm build`.
-2. Start the bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
-3. Optionally start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
-4. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`.
+2. Optionally set `VIBE_FIGMA_BRIDGE_STORE_PATH` if you want the bridge to persist somewhere other than `~/.vibe-figma-ui/captures.json`.
+3. Start the bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
+4. Confirm the bridge startup log prints the storage path it is using.
+5. Optionally start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
+6. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`.
 
 ## Scenario 1: Preserved Remote Library Instance
 
@@ -39,14 +41,20 @@ Expected result:
 - `registries.styles[*].boundVariables` points at the captured variable refs.
 - `roots[*].designSystem.resolvedVariableModes` is populated when the runtime exposes it.
 
-## Scenario 3: Bridge And MCP Retrieval
+## Scenario 3: Bridge History And MCP Retrieval
 
 1. After a successful plugin upload, call the MCP tools `get_latest_capture`, `get_latest_capture_document`, and `get_latest_capture_registries`.
-2. Compare the returned `captureId` and `receivedAt` values with the bridge response.
+2. Upload at least one more selection so the bridge has history.
+3. Fetch `http://127.0.0.1:3845/captures`, `http://127.0.0.1:3845/captures/latest`, and `http://127.0.0.1:3845/captures/<captureId>` for one of the history entries.
+4. Call the MCP tools `get_capture_history` and `get_capture_document_by_id` for one of those capture IDs.
+5. Restart the local bridge process and repeat the history fetches.
 
 Expected result:
 
 - MCP reads the same latest capture that the bridge stored.
+- Bridge history remains available after the bridge process restarts.
+- `get_capture_history` returns the same recent IDs as `GET /captures`.
+- `get_capture_document_by_id` returns the same document as `GET /captures/<captureId>`.
 - Registry counts match between MCP summary output and the bridge document body.
 
 ## Current Boundary

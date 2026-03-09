@@ -18,14 +18,42 @@ describe("MCP tool suite", () => {
     const bridgeClient = createStoreBackedBridgeClient(store);
     const tools = createToolSuite({ bridgeClient });
 
-    await bridgeClient.uploadCapture(document);
+    const firstCapture = await bridgeClient.uploadCapture(document);
+    const secondCapture = await bridgeClient.uploadCapture(document);
 
     await expect(
       tools.validateDesignDocument({ document })
     ).resolves.toMatchObject({
       valid: true
     });
+    await expect(tools.getCaptureHistory({ limit: 1 })).resolves.toEqual({
+      captures: [
+        {
+          id: secondCapture.id,
+          receivedAt: secondCapture.receivedAt,
+          rootCount: 1,
+          schemaVersion: "0.1",
+          selectionCount: 1,
+          warningCount: 0
+        }
+      ],
+      totalReturned: 1
+    });
+    await expect(
+      tools.getCaptureDocumentById({ captureId: firstCapture.id })
+    ).resolves.toMatchObject({
+      captureId: firstCapture.id,
+      document: {
+        schemaVersion: "0.1"
+      },
+      summary: {
+        rootCount: 1,
+        selectionCount: 1,
+        warningCount: 0
+      }
+    });
     await expect(tools.getLatestCapture()).resolves.toMatchObject({
+      captureId: secondCapture.id,
       schemaVersion: "0.1"
     });
     await expect(tools.getLatestCaptureDocument()).resolves.toMatchObject({

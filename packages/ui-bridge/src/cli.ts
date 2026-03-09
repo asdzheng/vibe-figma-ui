@@ -2,7 +2,10 @@
 
 import {
   DEFAULT_BRIDGE_HOST,
+  DEFAULT_BRIDGE_MAX_STORED_CAPTURES,
   DEFAULT_BRIDGE_PORT,
+  DEFAULT_BRIDGE_STORAGE_PATH,
+  createFileCaptureStore,
   startBridgeHttpServer
 } from "./index.js";
 
@@ -20,9 +23,36 @@ function parsePort(value: string | undefined): number {
   return parsedPort;
 }
 
+function parsePositiveInteger(
+  value: string | undefined,
+  fallbackValue: number,
+  label: string
+): number {
+  if (!value) {
+    return fallbackValue;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue <= 0) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+
+  return parsedValue;
+}
+
 const server = await startBridgeHttpServer({
   host: process.env.VIBE_FIGMA_BRIDGE_HOST ?? DEFAULT_BRIDGE_HOST,
-  port: parsePort(process.env.VIBE_FIGMA_BRIDGE_PORT ?? process.env.PORT)
+  port: parsePort(process.env.VIBE_FIGMA_BRIDGE_PORT ?? process.env.PORT),
+  store: createFileCaptureStore({
+    filePath:
+      process.env.VIBE_FIGMA_BRIDGE_STORE_PATH ?? DEFAULT_BRIDGE_STORAGE_PATH,
+    maxEntries: parsePositiveInteger(
+      process.env.VIBE_FIGMA_BRIDGE_MAX_CAPTURES,
+      DEFAULT_BRIDGE_MAX_STORED_CAPTURES,
+      "bridge max captures"
+    )
+  })
 });
 
 const shutdown = async () => {
@@ -37,7 +67,9 @@ process.on("SIGTERM", () => {
   void shutdown();
 });
 
-console.error(`vibe-figma-ui bridge listening on ${server.baseUrl}`);
+console.error(
+  `vibe-figma-ui bridge listening on ${server.baseUrl} using ${process.env.VIBE_FIGMA_BRIDGE_STORE_PATH ?? DEFAULT_BRIDGE_STORAGE_PATH}`
+);
 
 await new Promise(() => {
   // Keep the bridge process alive until it receives a termination signal.

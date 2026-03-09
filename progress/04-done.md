@@ -30,3 +30,7 @@
 - Expanded `packages/fixtures` into a named regression fixture set covering remote-library preservation, icon normalization, helper inlining, ignored helpers, and variable modes.
 - Updated the MCP fixture tool so downstream clients can load any checked-in fixture by name.
 - Added `progress/06-manual-verification.md` with live Figma plugin, bridge, and MCP verification steps plus the current policy-injection boundary.
+- Added persistent local storage for bridge captures with retained history across restarts.
+- Added bridge history endpoints plus by-id capture retrieval and wired matching fetch-client helpers.
+- Expanded the MCP server with capture-history and capture-by-id tools on top of the persisted bridge contract.
+- Re-verified `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm test`, and `corepack pnpm build` after the persisted history change.

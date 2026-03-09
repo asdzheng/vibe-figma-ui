@@ -8,7 +8,7 @@ import {
   type PluginUiToMainMessage
 } from "./ui.js";
 
-export const PLUGIN_VERSION = "0.5.0";
+export const PLUGIN_VERSION = "0.6.0";
 
 type PluginUiChannel = {
   onmessage: ((message: unknown) => void) | undefined;

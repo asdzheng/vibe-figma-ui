@@ -22,6 +22,7 @@ import {
   createFetchBridgeClient,
   DEFAULT_BRIDGE_BASE_URL,
   type CaptureBridgeClient,
+  type CaptureHistoryEntry,
   type StoredCapture
 } from "@vibe-figma/ui-bridge";
 import { z } from "zod";
@@ -43,6 +44,11 @@ export type LatestCaptureResult = {
   captureId: string;
   receivedAt: string;
   schemaVersion: string;
+};
+
+export type CaptureHistoryResult = {
+  captures: CaptureHistoryEntry[];
+  totalReturned: number;
 };
 
 const registrySliceNames = [
@@ -89,6 +95,9 @@ export type LatestCaptureDiagnosticsResult = {
   receivedAt: string;
   summary: CaptureSummary;
 };
+
+const captureHistoryLimitSchema = z.number().int().positive().max(100).optional();
+const captureIdSchema = z.string().min(1);
 
 export type FixtureCaptureResult = {
   document: unknown;
@@ -145,6 +154,30 @@ async function getRequiredLatestCapture(
   }
 
   return latestCapture;
+}
+
+async function getRequiredCaptureById(
+  bridgeClient: CaptureBridgeClient,
+  captureId: string
+): Promise<StoredCapture> {
+  const capture = await bridgeClient.getCaptureById(captureId);
+
+  if (!capture) {
+    throw new Error(`No capture available for id ${captureId}.`);
+  }
+
+  return capture;
+}
+
+function createCaptureDocumentResult(
+  capture: StoredCapture
+): LatestCaptureDocumentResult {
+  return {
+    captureId: capture.id,
+    document: capture.document,
+    receivedAt: capture.receivedAt,
+    summary: createCaptureSummary(capture.document)
+  };
 }
 
 function pickRegistries(
@@ -232,15 +265,27 @@ export function createToolSuite(options: VibeMcpServerOptions = {}) {
         summary: createCaptureSummary(latestCapture.document)
       };
     },
-    async getLatestCaptureDocument(): Promise<LatestCaptureDocumentResult> {
-      const latestCapture = await getRequiredLatestCapture(bridgeClient);
+    async getCaptureDocumentById(args: {
+      captureId: string;
+    }): Promise<LatestCaptureDocumentResult> {
+      return createCaptureDocumentResult(
+        await getRequiredCaptureById(bridgeClient, args.captureId)
+      );
+    },
+    async getCaptureHistory(args: {
+      limit?: number;
+    }): Promise<CaptureHistoryResult> {
+      const captures = await bridgeClient.listCaptures(
+        args.limit === undefined ? {} : { limit: args.limit }
+      );
 
       return {
-        captureId: latestCapture.id,
-        document: latestCapture.document,
-        receivedAt: latestCapture.receivedAt,
-        summary: createCaptureSummary(latestCapture.document)
+        captures,
+        totalReturned: captures.length
       };
+    },
+    async getLatestCaptureDocument(): Promise<LatestCaptureDocumentResult> {
+      return createCaptureDocumentResult(await getRequiredLatestCapture(bridgeClient));
     },
     async getLatestCaptureRegistries(args: {
       registries?: RegistrySliceName[];
@@ -296,7 +341,7 @@ export function createVibeMcpServer(
 ): McpServer {
   const server = new McpServer({
     name: options.name ?? "vibe-figma-ui",
-    version: options.version ?? "0.5.0"
+    version: options.version ?? "0.6.0"
   });
   const tools = createToolSuite(options);
 
@@ -309,6 +354,38 @@ export function createVibeMcpServer(
       })
     },
     async ({ document }) => toTextResult(await tools.validateDesignDocument({ document }))
+  );
+
+  server.registerTool(
+    "get_capture_history",
+    {
+      description:
+        "Fetch recent bridge-backed capture history entries from the local UI bridge.",
+      inputSchema: z
+        .object({
+          limit: captureHistoryLimitSchema
+        })
+        .strict()
+    },
+    async ({ limit }) =>
+      toTextResult(
+        await tools.getCaptureHistory(limit === undefined ? {} : { limit })
+      )
+  );
+
+  server.registerTool(
+    "get_capture_document_by_id",
+    {
+      description:
+        "Fetch a previously stored canonical design document by capture ID from the local UI bridge.",
+      inputSchema: z
+        .object({
+          captureId: captureIdSchema
+        })
+        .strict()
+    },
+    async ({ captureId }) =>
+      toTextResult(await tools.getCaptureDocumentById({ captureId }))
   );
 
   server.registerTool(

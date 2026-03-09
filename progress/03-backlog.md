@@ -7,8 +7,6 @@
 
 ## Bridge
 
-- Add persistent local storage instead of memory-only storage.
-- Add capture history endpoints, not only latest capture.
 - Add basic authentication or local trust boundary notes if needed.
 - Add optional CLI flags or config file support beyond the default host and port env vars.
 
@@ -16,7 +14,6 @@
 
 - Add policy-explanation or rule-debugging tools if downstream clients need deeper capture reasoning.
 - Add prompt or resource endpoints if downstream clients benefit.
-- Add history-aware MCP tools once the bridge supports persisted capture storage.
 
 ## Fixtures and Testing
 
