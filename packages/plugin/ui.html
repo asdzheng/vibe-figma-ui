@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vibe Figma UI</title>
+  </head>
+  <body>
+    <script>
+      window.onmessage = (event) => {
+        if (event.data?.pluginMessage?.type === "capture:ready") {
+          parent.postMessage({ pluginMessage: { type: "capture:selection" } }, "*");
+        }
+      };
+    </script>
+  </body>
+</html>

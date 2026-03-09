@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "0.1",
+  "capture": {
+    "timestamp": "2026-03-09T08:00:00.000Z",
+    "pluginVersion": "0.1.0",
+    "editorType": "figma",
+    "page": {
+      "id": "1:2",
+      "name": "Checkout"
+    },
+    "selection": [
+      {
+        "id": "12:34",
+        "name": "Checkout Screen",
+        "type": "FRAME"
+      }
+    ],
+    "options": {
+      "captureScope": "selection",
+      "expandInstances": false
+    }
+  },
+  "roots": [
+    {
+      "pluginNodeId": "12:34",
+      "restNodeId": "12:34",
+      "figmaType": "FRAME",
+      "kind": "frame",
+      "name": "Checkout Screen",
+      "bounds": {
+        "width": 390,
+        "height": 844
+      },
+      "layout": {
+        "position": "flow",
+        "mode": "column",
+        "gap": 24,
+        "padding": {
+          "top": 32,
+          "right": 24,
+          "bottom": 32,
+          "left": 24
+        }
+      },
+      "children": [
+        {
+          "pluginNodeId": "12:35",
+          "restNodeId": "12:35",
+          "figmaType": "TEXT",
+          "kind": "text",
+          "name": "Heading",
+          "bounds": {
+            "width": 220,
+            "height": 32
+          },
+          "content": {
+            "text": {
+              "characters": "Checkout",
+              "textStyleRef": "style:text-heading",
+              "alignment": {
+                "horizontal": "left",
+                "vertical": "top"
+              }
+            }
+          }
+        },
+        {
+          "pluginNodeId": "12:99",
+          "restNodeId": "12:99",
+          "figmaType": "INSTANCE",
+          "kind": "instance",
+          "name": "Button / Primary",
+          "bounds": {
+            "width": 160,
+            "height": 48
+          },
+          "layout": {
+            "position": "flow",
+            "sizing": {
+              "horizontal": "fixed",
+              "vertical": "fixed"
+            }
+          },
+          "designSystem": {
+            "componentRef": "component:button-primary",
+            "policy": "preserve",
+            "instance": {
+              "variant": {
+                "Size": "L",
+                "Tone": "Primary"
+              },
+              "overrides": {
+                "Label": {
+                  "type": "text",
+                  "value": "Pay now"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "registries": {
+    "components": {
+      "component:button-primary": {
+        "ref": "component:button-primary",
+        "key": "buttonPrimary",
+        "name": "Button / Primary",
+        "componentSetRef": "component-set:button",
+        "remote": true,
+        "library": {
+          "name": "Acme Design System"
+        },
+        "properties": {
+          "Size": {
+            "type": "VARIANT",
+            "variantOptions": ["S", "M", "L"]
+          },
+          "Tone": {
+            "type": "VARIANT",
+            "variantOptions": ["Primary", "Secondary"]
+          }
+        }
+      }
+    },
+    "componentSets": {
+      "component-set:button": {
+        "ref": "component-set:button",
+        "key": "buttonSet",
+        "name": "Button",
+        "remote": true,
+        "properties": {
+          "Size": {
+            "type": "VARIANT",
+            "variantOptions": ["S", "M", "L"]
+          }
+        }
+      }
+    },
+    "styles": {
+      "style:text-heading": {
+        "ref": "style:text-heading",
+        "name": "Text / Heading",
+        "styleType": "TEXT",
+        "remote": true
+      }
+    },
+    "variables": {
+      "variable:color-action-primary": {
+        "ref": "variable:color-action-primary",
+        "id": "VariableID:1:2",
+        "key": "colorActionPrimary",
+        "name": "color/action/primary",
+        "remote": true,
+        "resolvedType": "COLOR",
+        "collection": {
+          "id": "VariableCollectionId:1",
+          "key": "collectionAction",
+          "name": "Action"
+        },
+        "modes": [
+          {
+            "modeId": "mode-light",
+            "name": "Light",
+            "value": "#0F62FE"
+          }
+        ],
+        "codeSyntax": {
+          "WEB": "var(--color-action-primary)"
+        }
+      }
+    },
+    "icons": {},
+    "assets": {}
+  },
+  "diagnostics": {
+    "warnings": []
+  }
+}

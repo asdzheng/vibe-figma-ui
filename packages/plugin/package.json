@@ -1,0 +1,22 @@
+{
+  "name": "@vibe-figma/plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "manifest.json", "ui.html"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vibe-figma/capture-core": "workspace:*",
+    "@vibe-figma/schema": "workspace:*"
+  }
+}

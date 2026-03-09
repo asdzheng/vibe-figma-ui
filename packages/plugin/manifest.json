@@ -1,0 +1,8 @@
+{
+  "api": "1.0.0",
+  "editorType": ["figma"],
+  "id": "vibe-figma-ui",
+  "main": "dist/main.js",
+  "name": "Vibe Figma UI",
+  "ui": "ui.html"
+}
