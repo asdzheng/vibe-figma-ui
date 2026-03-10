@@ -1,5 +1,15 @@
 # Done
 
+## 2026-03-10
+
+- Implemented the first V2 CLI-first runtime pass from `docs/rfcs/v2-runtime-architecture.md` and `docs/rfcs/cli-first.md`.
+- Added `packages/cli` with a thin local companion server, session routing, status/capture commands, logs, doctor output, and the `vibe-figma` bin wrapper.
+- Refactored the plugin runtime so the plugin UI maintains a live companion session and forwards live commands to the worker instead of auto-uploading to a bridge.
+- Made the plugin a visible Figma-side smoke panel that keeps retrying the companion connection, surfaces live page and selection state, and shows the latest capture summary instead of failing closed on first connect.
+- Reworked the live smoke script so it waits for a live plugin session and requests capture through the new companion command path.
+- Updated packaging to emit the plugin bundle plus CLI tarball as the active V2 artifact set.
+- Rewrote README and progress docs around the CLI-first architecture and explicitly deferred MCP from the active V2 implementation.
+
 ## 2026-03-09
 
 - Created the initial `pnpm` monorepo workspace.
@@ -38,3 +48,7 @@
 - Added root convenience scripts for starting the bridge and MCP server during local development.
 - Documented the local development and artifact packaging flow in `README.md`.
 - Added new `AGENTS.md` lessons covering persisted-write safety, `pnpm` script argument parsing, strict Node-script linting, and build-before-package verification order.
+- Reworked `README.md` into an open-source user guide covering plugin installation and MCP configuration for Codex CLI, Claude Code, and VS Code MCP clients.
+- Updated the plugin manifest to declare both `figma` and `dev` editor types and the `inspect` capability so installation works from Design Mode and the Dev Mode handoff panel.
+- Switched the plugin manifest and build output over to a bundled Figma runtime entry so opening the plugin does not execute raw ESM in Figma.
+- Added a live `test:e2e:figma` smoke-verification script plus documentation for pairing it with `figma-console-mcp` Local Mode during plugin debugging.

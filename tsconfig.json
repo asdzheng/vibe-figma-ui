@@ -4,13 +4,20 @@
     "baseUrl": ".",
     "paths": {
       "@vibe-figma/capture-core": ["./packages/capture-core/src/index.ts"],
+      "@vibe-figma/cli": ["./packages/cli/src/index.ts"],
+      "@vibe-figma/cli/transport": ["./packages/cli/src/transport.ts"],
       "@vibe-figma/fixtures": ["./packages/fixtures/src/index.ts"],
-      "@vibe-figma/mcp-server": ["./packages/mcp-server/src/index.ts"],
       "@vibe-figma/plugin": ["./packages/plugin/src/index.ts"],
-      "@vibe-figma/schema": ["./packages/schema/src/index.ts"],
-      "@vibe-figma/ui-bridge": ["./packages/ui-bridge/src/index.ts"]
+      "@vibe-figma/schema": ["./packages/schema/src/index.ts"]
     },
     "noEmit": true
   },
-  "include": ["packages/**/*.ts", "vitest.config.ts"]
+  "include": [
+    "packages/capture-core/**/*.ts",
+    "packages/cli/**/*.ts",
+    "packages/fixtures/**/*.ts",
+    "packages/plugin/**/*.ts",
+    "packages/schema/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

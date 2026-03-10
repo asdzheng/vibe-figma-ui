@@ -7,25 +7,41 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   resolve: {
-    alias: {
-      "@vibe-figma/capture-core": resolve(
-        rootDir,
-        "packages/capture-core/src/index.ts"
-      ),
-      "@vibe-figma/fixtures": resolve(rootDir, "packages/fixtures/src/index.ts"),
-      "@vibe-figma/mcp-server": resolve(
-        rootDir,
-        "packages/mcp-server/src/index.ts"
-      ),
-      "@vibe-figma/plugin": resolve(rootDir, "packages/plugin/src/index.ts"),
-      "@vibe-figma/schema": resolve(rootDir, "packages/schema/src/index.ts"),
-      "@vibe-figma/ui-bridge": resolve(
-        rootDir,
-        "packages/ui-bridge/src/index.ts"
-      )
-    }
+    alias: [
+      {
+        find: "@vibe-figma/capture-core",
+        replacement: resolve(rootDir, "packages/capture-core/src/index.ts")
+      },
+      {
+        find: "@vibe-figma/cli/transport",
+        replacement: resolve(rootDir, "packages/cli/src/transport.ts")
+      },
+      {
+        find: /^@vibe-figma\/cli$/,
+        replacement: resolve(rootDir, "packages/cli/src/index.ts")
+      },
+      {
+        find: "@vibe-figma/fixtures",
+        replacement: resolve(rootDir, "packages/fixtures/src/index.ts")
+      },
+      {
+        find: "@vibe-figma/plugin",
+        replacement: resolve(rootDir, "packages/plugin/src/index.ts")
+      },
+      {
+        find: "@vibe-figma/schema",
+        replacement: resolve(rootDir, "packages/schema/src/index.ts")
+      }
+    ]
   },
   test: {
-    include: ["packages/*/test/**/*.test.ts", "scripts/**/*.test.mjs"]
+    include: [
+      "packages/capture-core/test/**/*.test.ts",
+      "packages/cli/test/**/*.test.ts",
+      "packages/fixtures/test/**/*.test.ts",
+      "packages/plugin/test/**/*.test.ts",
+      "packages/schema/test/**/*.test.ts",
+      "scripts/**/*.test.mjs"
+    ]
   }
 });

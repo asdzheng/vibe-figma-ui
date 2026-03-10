@@ -1,6 +1,6 @@
 {
   "name": "@vibe-figma/plugin",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,12 +12,15 @@
   },
   "files": ["dist", "manifest.json", "ui.html"],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && esbuild src/plugin-entry.ts --bundle --format=iife --outfile=dist/plugin.js --platform=browser --sourcemap --target=es6",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@vibe-figma/capture-core": "workspace:*",
-    "@vibe-figma/schema": "workspace:*",
-    "@vibe-figma/ui-bridge": "workspace:*"
+    "@vibe-figma/cli": "workspace:*",
+    "@vibe-figma/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
   }
 }

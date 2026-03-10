@@ -1,67 +1,88 @@
 # Manual Verification
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 
-These steps cover the parts of the plugin-to-bridge flow that are still best
-verified against a real Figma runtime.
+These steps cover the parts of the CLI-first runtime that still need a real Figma desktop session.
 
 ## Preflight
 
-1. Run `corepack pnpm build`.
-2. Optionally run `corepack pnpm package:artifacts` if you want to verify the packaged plugin bundle under `artifacts/plugin/`.
-3. Optionally set `VIBE_FIGMA_BRIDGE_STORE_PATH` if you want the bridge to persist somewhere other than `~/.vibe-figma-ui/captures.json`.
-4. Start the bridge with `corepack pnpm dev:bridge`.
-5. Confirm the bridge startup log prints the storage path it is using.
-6. Optionally start the MCP server with `corepack pnpm dev:mcp`.
-7. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`, or import `artifacts/plugin/manifest.json` if you are verifying the packaged bundle.
+1. Run `corepack pnpm build` so the plugin bundle and CLI dist output exist.
+2. Optionally run `corepack pnpm package:artifacts` if you want to verify the packaged plugin bundle and CLI tarball under `artifacts/`.
+3. Start the local companion with `corepack pnpm dev:cli`.
+4. In Figma desktop, import the development plugin from `packages/plugin/manifest.json`, or import `artifacts/plugin/manifest.json` if you are verifying the packaged bundle.
+5. Keep another terminal ready for CLI commands such as `corepack pnpm cli -- status`.
 
-## Scenario 1: Preserved Remote Library Instance
+## Scenario 1: Plugin Launch And Waiting State
 
-1. Open a Figma file that uses a published remote library component.
-2. Select a remote instance such as `Button / Primary`.
-3. Run the plugin.
-4. Confirm the plugin closes with a success message containing a bridge capture ID.
-5. Fetch `http://127.0.0.1:3845/captures/latest`.
+1. Open any Figma file.
+2. Run the `Vibe Figma UI` plugin before or after starting the companion.
+3. Leave the plugin window open.
 
 Expected result:
 
-- `roots[0].kind` stays `instance`.
-- `roots[0].designSystem.componentRef` is present.
-- `registries.components[*].remote` is `true`.
-- `registries.components[*].library.name` is populated.
+- The plugin opens a visible status window instead of running invisibly.
+- If the companion is not ready yet, the plugin stays open and shows a waiting or reconnecting state instead of closing immediately.
+- The window shows the default companion URL, the latest page name, selection count, and latest capture summary placeholders.
 
-## Scenario 2: Variable-Heavy Selection
+## Scenario 2: Companion Connectivity And Live Status
 
-1. Select a frame that uses both style-bound and directly bound variables.
-2. Include at least two variable collections or modes if available.
-3. Run the plugin and fetch the latest bridge capture.
-
-Expected result:
-
-- `registries.variables` contains the referenced variables and their mode tables.
-- `registries.styles[*].boundVariables` points at the captured variable refs.
-- `roots[*].designSystem.resolvedVariableModes` is populated when the runtime exposes it.
-
-## Scenario 3: Bridge History And MCP Retrieval
-
-1. After a successful plugin upload, call the MCP tools `get_latest_capture`, `get_latest_capture_document`, and `get_latest_capture_registries`.
-2. Upload at least one more selection so the bridge has history.
-3. Fetch `http://127.0.0.1:3845/captures`, `http://127.0.0.1:3845/captures/latest`, and `http://127.0.0.1:3845/captures/<captureId>` for one of the history entries.
-4. Call the MCP tools `get_capture_history` and `get_capture_document_by_id` for one of those capture IDs.
-5. Restart the local bridge process and repeat the history fetches.
+1. Open a Figma file with a non-empty selection.
+2. Run the plugin in Figma desktop.
+3. Run `corepack pnpm cli -- status`.
 
 Expected result:
 
-- MCP reads the same latest capture that the bridge stored.
-- Bridge history remains available after the bridge process restarts.
-- `get_capture_history` returns the same recent IDs as `GET /captures`.
-- `get_capture_document_by_id` returns the same document as `GET /captures/<captureId>`.
-- Registry counts match between MCP summary output and the bridge document body.
+- The CLI reports `connected: true`.
+- `current.status.page.name` matches the open Figma page.
+- `current.status.selectionCount` matches the live selection.
+- The plugin window switches to a connected state and shows the same page and selection summary.
+- No bridge upload or MCP configuration is required for the status check.
+
+## Scenario 3: Live Capture And Canonical Export
+
+1. Select a component instance or frame that exercises registry extraction.
+2. Run `corepack pnpm cli -- capture`.
+3. Run `corepack pnpm cli -- export-json --output artifacts/manual/capture.json`.
+4. Open `artifacts/manual/capture.json`.
+
+Expected result:
+
+- `capture` prints a summary with page name, selection count, root count, and warning count.
+- `export-json` prints canonical JSON to stdout and writes the same document to disk.
+- The plugin window updates its latest capture summary after the capture command completes.
+- The exported JSON contains expected component, style, and variable registry entries for the live selection.
+
+## Scenario 4: Reconnect And Log Inspection
+
+1. Leave the plugin running in Figma desktop.
+2. Stop the companion process and start it again with `corepack pnpm dev:cli`.
+3. Run `corepack pnpm cli -- status` again.
+4. Run `corepack pnpm cli -- logs --limit 100`.
+
+Expected result:
+
+- The plugin reconnects without falling back to the old bridge upload model.
+- The plugin window transitions through reconnecting back to connected without needing to be manually reopened.
+- `status` returns to `connected: true` after the companion restarts.
+- `logs` include session-connect and plugin UI log entries from the reconnect cycle.
+
+## Scenario 5: Assisted Smoke Loop
+
+1. Start the companion with `corepack pnpm dev:cli`.
+2. Run `corepack pnpm test:e2e:figma`.
+3. While the script waits, run the plugin in Figma desktop on a non-empty selection.
+4. Open `artifacts/e2e/figma-smoke-report.json`.
+
+Expected result:
+
+- The script waits for a live plugin session rather than polling a stored bridge capture.
+- The script requests a live capture through the new companion command path.
+- The report includes session ID, capture time, page name, root count, selection count, and diagnostics count.
+- The plugin window can remain open for the whole smoke loop; the only required human actions are in Figma desktop.
 
 ## Current Boundary
 
-- Icon normalization, helper inlining, and ignored-helper outputs are currently
-  covered by named regression fixtures in `packages/fixtures/data`.
-- The live plugin runtime does not inject component policy rule tables yet, so
-  real Figma uploads should currently be expected to preserve instances unless a
-  later integration step wires policy input into the runtime capture flow.
+- Icon normalization, helper inlining, ignored helpers, remote-library preservation, and variable-mode shaping still rely on the same core normalization and checked-in fixtures.
+- Live runtime policy injection is still missing, so real Figma runs should still be expected to default to preserved instances unless policy input is wired in later.
+- `vibe-figma screenshot` is not implemented yet; visual verification still requires manual Figma inspection or separate tooling.
+- The practical manual boundary is now: import the plugin, run it in Figma desktop, keep the window open, and visually inspect the design when needed.

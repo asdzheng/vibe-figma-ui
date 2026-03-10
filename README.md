@@ -1,95 +1,188 @@
 # vibe-figma-ui
 
-Open-source Figma plugin, local bridge, and MCP server for capturing the current
-design context as a canonical JSON document for downstream AI code generation.
+CLI-first Figma context capture for AI code generation.
 
-The canonical payload shape and component-preservation behavior are defined in:
+V2 centers the product on:
+
+- a Figma plugin as the Figma-side runtime endpoint
+- a local `vibe-figma` CLI companion for human and agent workflows
+- shared `schema`, `capture-core`, canonical JSON, and policy logic
+
+MCP is explicitly deferred in V2 and is not part of the active workspace path.
+
+## Source Of Truth
+
+Architecture and runtime direction:
+
+- [docs/rfcs/v2-runtime-architecture.md](docs/rfcs/v2-runtime-architecture.md)
+- [docs/rfcs/cli-first.md](docs/rfcs/cli-first.md)
+
+Canonical JSON and component behavior:
 
 - [docs/rfcs/design-json-schema-v0.1.md](docs/rfcs/design-json-schema-v0.1.md)
 - [docs/rfcs/component-preservation-policy.md](docs/rfcs/component-preservation-policy.md)
 
-## Workspace
+## What V2 Does
 
-This repository is a `pnpm` monorepo with six packages:
+- captures the current Figma selection into canonical JSON
+- preserves component, style, and variable metadata for downstream tooling
+- gives agents a narrow local command surface: `status`, `capture`, `export-json`, `logs`, `doctor`
+- keeps the runtime shape simple: plugin in Figma, CLI on the host
 
-- `packages/schema`: strict `zod` schemas and shared types for the canonical JSON
-- `packages/capture-core`: pure normalization and component-policy evaluation
-- `packages/plugin`: Figma runtime adapter and capture entrypoints
-- `packages/ui-bridge`: local HTTP bridge and persisted capture-history store
-- `packages/mcp-server`: MCP server exposing validation, fixture, policy, and bridge-backed retrieval tools
-- `packages/fixtures`: checked-in golden JSON fixtures for deterministic tests
-
-## Requirements
+## Prerequisites
 
 - Node.js 22+
-- `corepack` enabled
+- `corepack`
+- Figma desktop
 
-## Getting Started
+## Install From Source
 
 ```bash
+git clone https://github.com/asdzheng/vibe-figma-ui.git
+cd vibe-figma-ui
 corepack pnpm install
-corepack pnpm lint
-corepack pnpm typecheck
-corepack pnpm test
 corepack pnpm build
 ```
 
-## Package Artifacts
-
-Build repeatable distributable outputs with:
+If you want packaged artifacts for the plugin and CLI:
 
 ```bash
 corepack pnpm package:artifacts
 ```
 
-That command rebuilds the workspace and writes these outputs under `artifacts/`:
+That writes:
 
-- `artifacts/plugin/`: Figma-importable plugin bundle containing `manifest.json`, `ui.html`, and `dist/`
-- `artifacts/npm/`: packed `.tgz` outputs for `@vibe-figma/ui-bridge` and `@vibe-figma/mcp-server`
-- `artifacts/manifest.json`: generated summary of the packaged outputs
+- `artifacts/plugin/`: importable Figma plugin bundle
+- `artifacts/npm/`: packed CLI tarball
+- `artifacts/package-artifacts.json`: artifact manifest
 
-Override the target directory with `corepack pnpm package:artifacts -- --output-dir release-artifacts`.
-Skip the rebuild only if the current `dist/` output is already fresh with `--skip-build`.
+## Start The Local Companion
 
-## Current Capabilities
+Run the local companion in one terminal:
 
-- Canonical design JSON schema v0.1 with registry ref validation
-- Ordered component preservation policy engine with conservative defaults
-- Real plugin runtime capture path that extracts selection nodes, text, paints, effects, component metadata, styles, and variables from Figma-like runtime objects into the canonical document flow
-- Shared adapter that builds capture documents from normalized selection input
-- Plugin UI bridge flow that uploads canonical captures to the local HTTP bridge and closes cleanly after upload
-- Local bridge with default address `http://127.0.0.1:3845`, browser-safe CORS headers, persisted storage at `~/.vibe-figma-ui/captures.json`, `POST /captures`, `GET /captures`, `GET /captures/latest`, and `GET /captures/:captureId`
-- MCP tools for:
-  - validating a design document
-  - loading named regression fixtures for sample, remote-library, icon, helper, and variable-mode scenarios
-  - evaluating component policy rules
-  - fetching recent capture history, loading a stored capture by ID, and fetching latest bridge-backed capture metadata, the full document, registry slices, and diagnostics from the default local bridge URL
+```bash
+corepack pnpm dev:cli
+```
 
-## Notes
+Or call the CLI directly from the workspace:
 
-- Fixtures live under `packages/fixtures/data`, can be loaded by name through `load_fixture_capture`, and are validated in tests.
-- Build output is emitted to each package's `dist/` directory.
-- The plugin package now includes runtime extraction modules plus a bootstrap path for capturing the active Figma selection.
-- Start the local bridge with `corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge`.
-- Override bridge storage with `VIBE_FIGMA_BRIDGE_STORE_PATH=/absolute/path/to/captures.json` and retention with `VIBE_FIGMA_BRIDGE_MAX_CAPTURES=100` when needed.
-- Start the MCP server with `corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp`.
-- Live Figma verification steps now live in `progress/06-manual-verification.md`.
-- The next integration steps are broader runtime capture coverage and deeper policy injection into the live plugin runtime.
+```bash
+corepack pnpm cli -- status
+```
 
-## Local Development Flow
+Default companion URL:
 
-Use separate terminals so the bridge and MCP server stay available while you run the plugin in Figma:
+```text
+http://localhost:3845
+```
 
-1. Run `corepack pnpm install`.
-2. Run `corepack pnpm build`.
-3. Start the local bridge with `corepack pnpm dev:bridge`.
-4. Start the MCP server with `corepack pnpm dev:mcp`.
-5. In Figma desktop, import `packages/plugin/manifest.json` for source-based development, or `artifacts/plugin/manifest.json` after running `corepack pnpm package:artifacts`.
-6. Run the plugin on a selection and inspect bridge history with `GET http://127.0.0.1:3845/captures` or MCP tools such as `get_capture_history`.
+Supported environment variables:
 
-Bridge runtime configuration currently stays on environment variables instead of extra CLI flags:
+- `VIBE_FIGMA_COMPANION_URL`
+- `VIBE_FIGMA_COMPANION_HOST`
+- `VIBE_FIGMA_COMPANION_PORT`
 
-- `VIBE_FIGMA_BRIDGE_HOST`
-- `VIBE_FIGMA_BRIDGE_PORT`
-- `VIBE_FIGMA_BRIDGE_STORE_PATH`
-- `VIBE_FIGMA_BRIDGE_MAX_CAPTURES`
+Legacy `VIBE_FIGMA_BRIDGE_*` names are still accepted as transitional fallbacks for the CLI companion, but they are no longer the documented primary path.
+
+## Install The Figma Plugin
+
+Build first, then import:
+
+```text
+packages/plugin/manifest.json
+```
+
+If you packaged artifacts first, you can import:
+
+```text
+artifacts/plugin/manifest.json
+```
+
+In Figma desktop use `Plugins > Development > Import plugin from manifest...` and select the file itself.
+Do not select the containing folder.
+
+The manifest points at the bundled `dist/plugin.js` runtime entry and supports both Design Mode and Dev Mode install flows.
+In Figma, the plugin appears as `Vibe Figma UI`.
+The checked-in manifest currently whitelists the default local companion URL `http://localhost:3845`.
+If you move the companion to a different port, update `devAllowedDomains` in the manifest before re-importing.
+
+## CLI Workflow
+
+Initialize and inspect the local setup:
+
+```bash
+corepack pnpm cli -- init
+corepack pnpm cli -- doctor
+```
+
+Once the companion is running and the plugin is open in Figma:
+
+```bash
+corepack pnpm cli -- status
+corepack pnpm cli -- capture
+corepack pnpm cli -- export-json --output artifacts/manual/capture.json
+corepack pnpm cli -- logs --limit 100
+```
+
+`export-json` always prints the canonical JSON document to stdout. `--output` also writes the same JSON to disk.
+
+`screenshot` exists as a CLI command surface but currently returns an explicit "not implemented yet" message. Visual verification is still a manual Figma-side step in V2.
+
+## Typical Local Flow
+
+1. Run `corepack pnpm dev:cli`.
+2. Import `packages/plugin/manifest.json` into Figma desktop.
+3. Open a Figma file and run the `Vibe Figma UI` plugin.
+4. Leave the plugin window open. It now shows connection state, page name, selection count, and the latest capture summary while it retries the companion connection automatically.
+5. Use `corepack pnpm cli -- status` to confirm the live session.
+6. Use `corepack pnpm cli -- capture` or `corepack pnpm cli -- export-json`.
+
+## Live Figma Smoke Loop
+
+The repository includes a live smoke script for the CLI-first path:
+
+```bash
+corepack pnpm test:e2e:figma
+```
+
+The script:
+
+- waits for the companion to report a live plugin session
+- requests a capture through the new command path
+- validates the canonical JSON shape
+- writes `artifacts/e2e/figma-smoke-report.json`
+
+The script still requires a human to import and run the plugin in Figma desktop, then keep the plugin window open until the report is written.
+
+## Automated Vs Manual
+
+Automated in V2:
+
+- local companion startup with `corepack pnpm dev:cli`
+- live CLI commands: `status`, `capture`, `export-json`, `logs`, `doctor`
+- assisted smoke validation with `corepack pnpm test:e2e:figma`
+- canonical JSON generation and report writing
+
+Still manual in Figma:
+
+- importing the plugin manifest into Figma desktop
+- opening a Figma file with a real selection
+- running the `Vibe Figma UI` plugin and keeping its window open during the smoke loop
+- visually inspecting the design in Figma because `vibe-figma screenshot` is still intentionally unimplemented
+
+## Package Layout
+
+Active V2 packages:
+
+- `packages/schema`: canonical data contract
+- `packages/capture-core`: normalization and policy engine
+- `packages/plugin`: Figma runtime endpoint
+- `packages/cli`: local companion server and CLI entrypoint
+- `packages/fixtures`: deterministic regression fixtures
+
+Deferred legacy packages:
+
+- `packages/ui-bridge`
+- `packages/mcp-server`
+
+They remain in the repository only as old V1-era references and are excluded from the active workspace and verification path.

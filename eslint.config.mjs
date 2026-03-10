@@ -3,7 +3,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/coverage/**", "**/dist/**", "**/*.d.ts"]
+    ignores: [
+      "**/coverage/**",
+      "**/dist/**",
+      "**/*.d.ts",
+      "packages/mcp-server/**",
+      "packages/ui-bridge/**"
+    ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

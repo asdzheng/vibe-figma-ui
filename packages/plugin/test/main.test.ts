@@ -1,10 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 
-import {
-  DEFAULT_BRIDGE_BASE_URL
-} from "@vibe-figma/ui-bridge";
+import { DEFAULT_COMPANION_BASE_URL } from "@vibe-figma/cli/transport";
 import {
   initializePluginRuntimeWithApi,
+  PLUGIN_UI_SIZE,
   PLUGIN_VERSION,
   renderPluginUiHtml,
   type PluginMainToUiMessage
@@ -57,71 +56,109 @@ function createPluginApiMock(): Parameters<
   };
 }
 
-describe("plugin runtime bridge flow", () => {
-  test("renders bridge upload UI with a normalized default bridge URL", () => {
+describe("plugin runtime companion flow", () => {
+  test("renders companion UI with a normalized default companion URL", () => {
     const html = renderPluginUiHtml({
-      bridgeBaseUrl: `${DEFAULT_BRIDGE_BASE_URL}/`
+      companionBaseUrl: `${DEFAULT_COMPANION_BASE_URL}/`
     });
 
-    expect(html).toContain(`"bridgeBaseUrl":"${DEFAULT_BRIDGE_BASE_URL}"`);
-    expect(html).toContain("capture:selection");
-    expect(html).toContain("capture:uploaded");
+    expect(html).toContain(`"companionBaseUrl":"${DEFAULT_COMPANION_BASE_URL}"`);
+    expect(html).toContain("Keep this plugin window open");
+    expect(html).toContain("corepack pnpm cli -- export-json");
+    expect(html).toContain("/plugin/sessions");
+    expect(html).toContain("runtime:execute");
   });
 
-  test("captures the selection and closes after the UI reports bridge upload", () => {
+  test("routes runtime commands through the plugin worker without closing the session", async () => {
     const pluginApi = createPluginApiMock();
 
     initializePluginRuntimeWithApi(pluginApi, {
-      bridgeBaseUrl: "http://127.0.0.1:4010/"
+      companionBaseUrl: "http://localhost:4010/"
     });
 
     expect(pluginApi.showUI).toHaveBeenCalledWith(
-      expect.stringContaining('"bridgeBaseUrl":"http://127.0.0.1:4010"'),
+      expect.stringContaining('"companionBaseUrl":"http://localhost:4010"'),
       expect.objectContaining({
-        height: 420,
-        visible: false,
-        width: 360
+        height: PLUGIN_UI_SIZE.height,
+        visible: true,
+        width: PLUGIN_UI_SIZE.width
       })
     );
     expect(typeof pluginApi.ui.onmessage).toBe("function");
 
-    pluginApi.ui.onmessage?.({ type: "capture:selection" });
+    pluginApi.ui.onmessage?.({
+      payload: {
+        id: "cmd-123",
+        method: "status"
+      },
+      type: "runtime:execute"
+    });
 
-    expect(pluginApi.ui.postMessage).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => {
+      expect(pluginApi.ui.postMessage).toHaveBeenCalledTimes(1);
+    });
 
-    const captureMessage = vi.mocked(pluginApi.ui.postMessage).mock.calls[0]?.[0] as
+    const statusMessage = vi.mocked(pluginApi.ui.postMessage).mock.calls[0]?.[0] as
       | PluginMainToUiMessage
       | undefined;
 
-    expect(captureMessage?.type).toBe("capture:result");
-    expect(captureMessage?.payload.capture.pluginVersion).toBe(PLUGIN_VERSION);
-    expect(captureMessage?.payload.capture.page.name).toBe("Checkout");
+    expect(statusMessage?.type).toBe("runtime:command-result");
+    expect(statusMessage?.payload).toMatchObject({
+      commandId: "cmd-123",
+      method: "status",
+      status: {
+        page: {
+          name: "Checkout"
+        },
+        pluginVersion: PLUGIN_VERSION,
+        selectionCount: 1
+      }
+    });
 
     pluginApi.ui.onmessage?.({
       payload: {
-        captureId: "capture-123",
-        receivedAt: "2026-03-09T10:00:00.000Z"
+        id: "cmd-456",
+        method: "capture"
       },
-      type: "capture:uploaded"
+      type: "runtime:execute"
     });
 
-    expect(pluginApi.closePlugin).toHaveBeenCalledWith(
-      "Capture uploaded to local bridge (capture-123)."
-    );
+    await vi.waitFor(() => {
+      expect(pluginApi.ui.postMessage).toHaveBeenCalledTimes(2);
+    });
+
+    const captureMessage = vi.mocked(pluginApi.ui.postMessage).mock.calls[1]?.[0] as
+      | PluginMainToUiMessage
+      | undefined;
+
+    expect(captureMessage?.type).toBe("runtime:command-result");
+    expect(captureMessage?.payload).toMatchObject({
+      commandId: "cmd-456",
+      method: "capture",
+      document: {
+        capture: {
+          page: {
+            name: "Checkout"
+          },
+          pluginVersion: PLUGIN_VERSION
+        }
+      }
+    });
+    expect(pluginApi.closePlugin).not.toHaveBeenCalled();
   });
 
-  test("closes the plugin with a bridge error message when upload fails", () => {
+  test("closes the plugin with a companion error message when the UI fails to connect", () => {
     const pluginApi = createPluginApiMock();
 
     initializePluginRuntimeWithApi(pluginApi);
 
     pluginApi.ui.onmessage?.({
-      message: "CORS preflight failed.",
-      type: "capture:error"
+      message: "Connection refused.",
+      type: "runtime:error"
     });
 
     expect(pluginApi.closePlugin).toHaveBeenCalledWith(
-      "Bridge upload failed: CORS preflight failed."
+      "Companion connection failed: Connection refused."
     );
   });
 });

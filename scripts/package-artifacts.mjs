@@ -8,10 +8,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const DEFAULT_ARTIFACTS_DIR = "artifacts";
-export const PACKAGE_PACK_TARGETS = [
-  "@vibe-figma/ui-bridge",
-  "@vibe-figma/mcp-server"
-];
+export const PACKAGE_PACK_TARGETS = ["@vibe-figma/cli"];
 export const PLUGIN_ARTIFACT_ENTRIES = ["dist", "manifest.json", "ui.html"];
 
 function parseOutputDir(value) {
@@ -178,7 +175,7 @@ export async function packageArtifacts({
       }
     }
   };
-  const manifestPath = join(artifactRoot, "manifest.json");
+  const manifestPath = join(artifactRoot, "package-artifacts.json");
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 

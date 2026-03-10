@@ -1,14 +1,23 @@
+import type {
+  RuntimeCommand,
+  RuntimeCommandResult,
+  RuntimeStatus
+} from "@vibe-figma/cli/transport";
 import type { DesignDocument } from "@vibe-figma/schema";
 
 import type { BuildSelectionCaptureInput } from "./model.js";
-import { buildSelectionCaptureFromRuntime } from "./runtime/capture.js";
+import { buildSelectionCaptureFromRuntimeAsync } from "./runtime/capture.js";
 import type { RuntimePluginApi, RuntimeSceneNode } from "./runtime/types.js";
 import {
   renderPluginUiHtml,
   type PluginUiToMainMessage
 } from "./ui.js";
 
-export const PLUGIN_VERSION = "0.7.0";
+export const PLUGIN_VERSION = "0.8.0";
+export const PLUGIN_UI_SIZE = {
+  height: 520,
+  width: 420
+} as const;
 
 type PluginUiChannel = {
   onmessage: ((message: unknown) => void) | undefined;
@@ -37,7 +46,7 @@ export type InitializePluginRuntimeOptions = Omit<
   BuildSelectionCaptureInput,
   "page" | "pluginVersion" | "registries" | "selection"
 > & {
-  bridgeBaseUrl?: string | undefined;
+  companionBaseUrl?: string | undefined;
 };
 
 function toRuntimeHost(pluginApi: PluginAPI): PluginRuntimeHost {
@@ -60,31 +69,28 @@ function isPluginUiToMainMessage(message: unknown): message is PluginUiToMainMes
   const record = message as Record<string, unknown>;
 
   switch (record.type) {
-    case "capture:selection":
-    case "capture:close":
-      return true;
-    case "capture:error":
+    case "runtime:error":
       return typeof record.message === "string" && record.message.length > 0;
-    case "capture:uploaded":
+    case "runtime:execute":
       return (
         "payload" in record &&
         typeof record.payload === "object" &&
         record.payload !== null &&
-        "captureId" in record.payload &&
-        typeof record.payload.captureId === "string" &&
-        "receivedAt" in record.payload &&
-        typeof record.payload.receivedAt === "string"
+        "id" in record.payload &&
+        typeof record.payload.id === "string" &&
+        "method" in record.payload &&
+        typeof record.payload.method === "string"
       );
     default:
       return false;
   }
 }
 
-function buildCurrentSelectionCapture(
+async function buildCurrentSelectionCapture(
   pluginApi: PluginRuntimeHost,
   options: InitializePluginRuntimeOptions = {}
-): DesignDocument {
-  return buildSelectionCaptureFromRuntime({
+): Promise<DesignDocument> {
+  return buildSelectionCaptureFromRuntimeAsync({
     page: {
       id: pluginApi.currentPage.id,
       name: pluginApi.currentPage.name
@@ -97,7 +103,7 @@ function buildCurrentSelectionCapture(
   });
 }
 
-export function captureCurrentSelection(): DesignDocument {
+export function captureCurrentSelection(): Promise<DesignDocument> {
   if (typeof figma === "undefined") {
     throw new Error("Figma runtime is not available.");
   }
@@ -105,16 +111,64 @@ export function captureCurrentSelection(): DesignDocument {
   return buildCurrentSelectionCapture(toRuntimeHost(figma));
 }
 
+function buildRuntimeStatus(pluginApi: PluginRuntimeHost): RuntimeStatus {
+  return {
+    page: {
+      id: pluginApi.currentPage.id,
+      name: pluginApi.currentPage.name
+    },
+    pluginVersion: PLUGIN_VERSION,
+    selectionCount: pluginApi.currentPage.selection.length,
+    selectionNodes: pluginApi.currentPage.selection.slice(0, 10).map((node) => ({
+      id: node.id,
+      name: node.name,
+      type: node.type
+    })),
+    timestamp: new Date().toISOString()
+  };
+}
+
+async function executeRuntimeCommand(
+  pluginApi: PluginRuntimeHost,
+  command: RuntimeCommand,
+  options: InitializePluginRuntimeOptions
+): Promise<RuntimeCommandResult> {
+  try {
+    if (command.method === "status") {
+      return {
+        commandId: command.id,
+        method: command.method,
+        status: buildRuntimeStatus(pluginApi)
+      };
+    }
+
+    return {
+      commandId: command.id,
+      document: await buildCurrentSelectionCapture(pluginApi, options),
+      method: command.method
+    };
+  } catch (error) {
+    return {
+      commandId: command.id,
+      error: toErrorMessage(error, "Plugin command failed."),
+      method: command.method
+    };
+  }
+}
+
 export function initializePluginRuntimeWithApi(
   pluginApi: PluginRuntimeHost,
   options: InitializePluginRuntimeOptions = {}
 ): void {
-  pluginApi.showUI(renderPluginUiHtml(options.bridgeBaseUrl ? {
-    bridgeBaseUrl: options.bridgeBaseUrl
-  } : {}), {
-    height: 420,
-    visible: false,
-    width: 360
+  pluginApi.showUI(renderPluginUiHtml({
+    ...(options.companionBaseUrl
+      ? { companionBaseUrl: options.companionBaseUrl }
+      : {}),
+    pluginVersion: PLUGIN_VERSION
+  }), {
+    height: PLUGIN_UI_SIZE.height,
+    visible: true,
+    width: PLUGIN_UI_SIZE.width
   });
 
   pluginApi.ui.onmessage = (message: unknown) => {
@@ -122,35 +176,20 @@ export function initializePluginRuntimeWithApi(
       return;
     }
 
-    if (message.type === "capture:selection") {
-      try {
-        const document = buildCurrentSelectionCapture(pluginApi, options);
-
-        pluginApi.ui.postMessage({
-          payload: document,
-          type: "capture:result"
-        });
-      } catch (error) {
-        pluginApi.closePlugin(toErrorMessage(error, "Capture failed."));
-      }
-
-      return;
-    }
-
-    if (message.type === "capture:uploaded") {
-      pluginApi.closePlugin(
-        `Capture uploaded to local bridge (${message.payload.captureId}).`
+    if (message.type === "runtime:execute") {
+      void executeRuntimeCommand(pluginApi, message.payload, options).then(
+        (payload) => {
+          pluginApi.ui.postMessage({
+            payload,
+            type: "runtime:command-result"
+          });
+        }
       );
       return;
     }
 
-    if (message.type === "capture:error") {
-      pluginApi.closePlugin(`Bridge upload failed: ${message.message}`);
-      return;
-    }
-
-    if (message.type === "capture:close") {
-      pluginApi.closePlugin();
+    if (message.type === "runtime:error") {
+      pluginApi.closePlugin(`Companion connection failed: ${message.message}`);
     }
   };
 }
@@ -163,8 +202,4 @@ export function initializePluginRuntime(
   }
 
   initializePluginRuntimeWithApi(toRuntimeHost(figma), options);
-}
-
-if (typeof figma !== "undefined") {
-  initializePluginRuntime();
 }

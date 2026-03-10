@@ -1,18 +1,19 @@
-# Issues and Risks
+# Issues And Risks
 
 ## Current Known Gaps
 
-- The live plugin runtime still captures component instances with the default preserve behavior because component policy rule injection is not wired into the runtime flow yet.
-- The live plugin runtime does not yet cover vectors, boolean operations, layout grids, or mixed-text edge cases with the same depth as the current frame/text/component path.
+- The live plugin runtime still captures component instances with the default preserve behavior because policy rule injection is not wired into the runtime flow yet.
+- The CLI `screenshot` command is intentionally a stub in the initial V2 pass; visual proof still requires manual Figma-side tooling.
+- The active workspace has moved away from bridge and MCP, but the old `packages/ui-bridge` and `packages/mcp-server` directories still exist in-repo as deferred legacy code.
+- Newer Figma desktop builds require manifest access declarations that were missing in the repo until the 2026-03-10 plugin manifest/runtime refresh; the remaining verification gap is a real desktop re-import check.
 
 ## Risks
 
-- Real Figma Plugin API usage will still surface node-type variance and edge cases not covered by the current runtime tests.
-- Variable, style, and instance-override extraction can become noisy if not kept deterministic as more node families are added.
-- If plugin, bridge, and MCP boundaries blur during integration, logic duplication may creep in across layers.
-- Localhost access from the Figma UI runtime depends on the local environment allowing loopback HTTP requests; browser-like runtime constraints still need manual validation.
+- Real Figma Plugin API behavior may surface reconnect or session edge cases not covered by the current static refactor.
+- Runtime extraction can still become noisy as more node families are added if deterministic shaping is not preserved.
+- Leaving deferred legacy code in the repository for too long may create drift or confusion unless it is cleaned up later.
+- Screenshot and richer visual verification remain a manual workflow gap for agent loops.
 
-## No Current Blockers
+## Current Blocker
 
-- Node, `pnpm`, git remote, and `gh` authentication are working.
-- Workspace verification is currently green after the runtime capture milestone.
+- No automated blocker is active in the workspace right now. The open blocker is manual Figma desktop verification of the refreshed plugin import path.

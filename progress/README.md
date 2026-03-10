@@ -26,7 +26,7 @@ Use `progress/06-manual-verification.md` when you need the current live Figma ve
 - `03-backlog.md`: not started yet
 - `04-done.md`: completed milestones and shipped items
 - `05-issues.md`: blockers, risks, and known gaps
-- `06-manual-verification.md`: live runtime verification checklist for plugin, bridge, and MCP integration
+- `06-manual-verification.md`: live runtime verification checklist for plugin and CLI companion integration
 
 ## Update Rules
 

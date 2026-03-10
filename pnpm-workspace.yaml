@@ -1,2 +1,6 @@
 packages:
-  - "packages/*"
+  - "packages/capture-core"
+  - "packages/cli"
+  - "packages/fixtures"
+  - "packages/plugin"
+  - "packages/schema"

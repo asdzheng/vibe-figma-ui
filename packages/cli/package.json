@@ -1,11 +1,11 @@
 {
-  "name": "@vibe-figma/ui-bridge",
-  "version": "0.7.0",
+  "name": "@vibe-figma/cli",
+  "version": "0.8.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "vibe-figma-bridge": "./bin/vibe-figma-bridge.mjs"
+    "vibe-figma": "./bin/vibe-figma.mjs"
   },
   "exports": {
     ".": {
