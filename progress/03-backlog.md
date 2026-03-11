@@ -2,24 +2,23 @@
 
 ## Plugin Runtime
 
-- Expand runtime extraction coverage for additional live node families such as vectors, boolean operations, grids, and mixed text cases.
-- Add asset and image registry population once the plugin-to-bridge path defines where binary-adjacent metadata should live.
+- Wire component policy rule injection into the live runtime so preserved instances are not always the default.
+- Expand runtime extraction coverage for vectors, boolean operations, layout grids, and mixed-text cases.
+- Add richer runtime diagnostics where command failures need more than a single error string.
 
-## Bridge
+## CLI Companion
 
-- Add basic authentication or local trust boundary notes if needed.
-- Add optional CLI flags or config file support beyond the default host and port env vars.
+- Add optional file-based session or latest-capture persistence only if a concrete workflow requires it.
+- Add optional raster or browser-rendered snapshot output if pixel-oriented review becomes worth the added cost.
+- Add session selection ergonomics for multiple simultaneous plugin windows if that becomes a routine workflow.
 
-## MCP Server
+## Compatibility
 
-- Add policy-explanation or rule-debugging tools if downstream clients need deeper capture reasoning.
-- Add prompt or resource endpoints if downstream clients benefit.
+- Delete or archive the deferred V1 `ui-bridge` and `mcp-server` code once no transition value remains.
+- Add a thin MCP adapter only if a later compatibility requirement proves it is worth the cost.
 
-## Fixtures and Testing
+## Fixtures And Testing
 
-- Add golden fixtures for large selections and page-level capture.
-- Add regression tests for omitted defaults, compact output, and runtime extraction edge cases.
-
-## Packaging
-
-- Add release automation for package artifacts if needed later.
+- Add golden fixtures for larger selections and page-level capture.
+- Add integration coverage for reconnect behavior and command failure handling.
+- Expand live smoke assertions around specific node families once their runtime extraction is implemented.

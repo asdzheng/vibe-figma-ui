@@ -1,5 +1,6 @@
 import { buildSelectionCapture } from "../adapter.js";
 import type { BuildSelectionCaptureInput } from "../model.js";
+import { prepareRuntimeCaptureInput } from "./live-capture.js";
 import { RuntimeRegistryCollector } from "./registry-collector.js";
 import { extractNodeFromRuntime } from "./extract-node.js";
 import type { RuntimePluginApi, RuntimeSceneNode } from "./types.js";
@@ -27,5 +28,20 @@ export function buildSelectionCaptureFromRuntime(
     selection,
     ...(input.sourceFileKey ? { sourceFileKey: input.sourceFileKey } : {}),
     ...(input.timestamp ? { timestamp: input.timestamp } : {})
+  });
+}
+
+export async function buildSelectionCaptureFromRuntimeAsync(
+  input: BuildSelectionCaptureFromRuntimeInput
+) {
+  const runtimeInput = await prepareRuntimeCaptureInput(
+    input.pluginApi,
+    input.selection
+  );
+
+  return buildSelectionCaptureFromRuntime({
+    ...input,
+    pluginApi: runtimeInput.pluginApi,
+    selection: runtimeInput.selection
   });
 }

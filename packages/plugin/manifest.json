@@ -1,8 +1,15 @@
 {
   "api": "1.0.0",
-  "editorType": ["figma"],
+  "capabilities": ["inspect"],
+  "documentAccess": "dynamic-page",
+  "editorType": ["figma", "dev"],
   "id": "vibe-figma-ui",
-  "main": "dist/main.js",
+  "main": "dist/plugin.js",
   "name": "Vibe Figma UI",
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://localhost:3845"],
+    "reasoning": "The plugin UI connects to the local CLI companion during development."
+  },
   "ui": "ui.html"
 }

@@ -47,11 +47,11 @@ describe("package artifact helpers", () => {
     await mkdir(join(pluginDir, "dist"), { recursive: true });
     await writeFile(
       join(pluginDir, "manifest.json"),
-      JSON.stringify({ main: "dist/main.js", ui: "ui.html" }),
+      JSON.stringify({ main: "dist/plugin.js", ui: "ui.html" }),
       "utf8"
     );
     await writeFile(join(pluginDir, "ui.html"), "<html></html>", "utf8");
-    await writeFile(join(pluginDir, "dist", "main.js"), "export {};\n", "utf8");
+    await writeFile(join(pluginDir, "dist", "plugin.js"), "(() => {})();\n", "utf8");
 
     const pluginBundleDir = await copyPluginArtifact({
       outputDir: artifactDir,
@@ -60,13 +60,13 @@ describe("package artifact helpers", () => {
 
     await expect(
       readFile(join(pluginBundleDir, "manifest.json"), "utf8")
-    ).resolves.toContain('"main":"dist/main.js"');
+    ).resolves.toContain('"main":"dist/plugin.js"');
     await expect(
       readFile(join(pluginBundleDir, "ui.html"), "utf8")
     ).resolves.toContain("<html>");
     await expect(
-      readFile(join(pluginBundleDir, "dist", "main.js"), "utf8")
-    ).resolves.toContain("export {}");
+      readFile(join(pluginBundleDir, "dist", "plugin.js"), "utf8")
+    ).resolves.toContain("(() => {})()");
   });
 
   test("fails fast when required plugin bundle inputs are missing", async () => {

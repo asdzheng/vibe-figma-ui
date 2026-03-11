@@ -7,47 +7,41 @@ Status legend:
 - `[todo]` not started
 - `[blocked]` waiting on a dependency or decision
 
-## Phase 1: Monorepo Foundation
+## Phase 1: Preserve The Core Value
 
-- `[done]` Create root workspace, package manifests, shared TypeScript config, Vitest config, and ESLint config.
-- `[done]` Create package boundaries for `schema`, `capture-core`, `plugin`, `ui-bridge`, `mcp-server`, and `fixtures`.
-- `[done]` Add root scripts for `lint`, `typecheck`, `test`, and `build`.
+- `[done]` Keep `packages/schema` as the canonical JSON contract.
+- `[done]` Keep `packages/capture-core` as the normalization and policy engine.
+- `[done]` Keep `packages/fixtures` for deterministic regression coverage.
 
-## Phase 2: Shared Schema and Policy
+## Phase 2: Add The CLI Companion
 
-- `[done]` Implement canonical JSON schema v0.1 with strict `zod` validation.
-- `[done]` Implement registry ref helpers and cross-registry validation.
-- `[done]` Implement component preservation policy schema and ordered evaluation.
+- `[done]` Add `packages/cli` as the primary host-side entrypoint.
+- `[done]` Add a thin local companion server for session routing, logs, and live commands.
+- `[done]` Add CLI commands for `init`, `status`, `capture`, `export-json`, `logs`, and `doctor`.
+- `[done]` Leave `screenshot` as an explicit unsupported command for now instead of pretending the path exists.
 
-## Phase 3: Capture Core
+## Phase 3: Refactor The Plugin Runtime
 
-- `[done]` Implement document builder and normalization pipeline.
-- `[done]` Support preserve, inline, icon, and ignore policy outcomes.
-- `[done]` Add deterministic tests for policy behavior and capture shaping.
+- `[done]` Keep the plugin as the Figma-side runtime endpoint.
+- `[done]` Replace one-shot bridge upload flow with a live command channel between plugin UI and worker.
+- `[done]` Support live `status` and `capture` requests from the local companion.
+- `[done]` Keep reconnect-oriented behavior in the plugin UI loop instead of immediately collapsing back to the old upload model.
 
-## Phase 4: Runtime Adapters
+## Phase 4: De-Emphasize V1 Bridge And MCP Paths
 
-- `[done]` Build real Figma Plugin API capture service on top of the current plugin adapter structure.
-- `[done]` Add plugin-side extraction for bounds, layout, styles, variables, component refs, and overrides from actual Figma nodes.
-- `[done]` Wire plugin UI messaging to an end-to-end capture request/response flow.
+- `[done]` Remove bridge-heavy and MCP-first messaging from root scripts and README.
+- `[done]` Exclude `packages/ui-bridge` and `packages/mcp-server` from the active workspace and test targets.
+- `[done]` Rework packaging to ship the plugin plus CLI artifact path.
 
-## Phase 5: Bridge and MCP Integration
+## Phase 5: Documentation And Manual Workflow
 
-- `[done]` Keep the local HTTP bridge as the transport contract to target.
-- `[done]` Connect plugin UI output to the local bridge.
-- `[done]` Add richer MCP tools around bridge-backed capture retrieval and diagnostics.
-- `[done]` Add a runnable local bridge CLI and default bridge URL contract shared by plugin, bridge, and MCP layers.
-- `[done]` Add persistent bridge storage, capture history endpoints, and history-aware MCP retrieval by capture ID.
+- `[done]` Rewrite README around the CLI-first runtime model.
+- `[done]` Update progress docs to reflect the new architecture and next steps.
+- `[done]` Rewrite live smoke and manual verification guidance around the companion workflow.
 
-## Phase 6: Fixtures and Quality
+## Phase 6: Verification
 
-- `[done]` Expand fixtures beyond the initial sample capture.
-- `[done]` Add runtime extraction tests for styles, variables, layout, and design-system metadata.
-- `[done]` Add bridge flow tests for plugin UI messaging and browser preflight handling.
-- `[done]` Add fixtures for icon normalization, helper-component inlining, ignored components, remote libraries, and variable modes.
-- `[done]` Add manual verification notes for plugin runtime behavior where automation is limited.
-
-## Phase 7: Packaging and Release Flow
-
-- `[done]` Establish commit, push, and release workflow.
-- `[done]` Add repeatable packaging or distribution steps for the plugin, bridge, and MCP server artifacts.
+- `[done]` Add a practical reverse-render validation artifact for the live exported JSON.
+- `[done]` Implement a thin local SVG snapshot path behind `vibe-figma screenshot`.
+- `[doing]` Re-run the full automated suite in an environment that permits localhost listeners.
+- `[doing]` Run live Figma manual verification against the updated plugin, companion flow, and snapshot path.

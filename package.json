@@ -1,15 +1,16 @@
 {
   "name": "vibe-figma-ui",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.31.0",
   "scripts": {
     "build": "corepack pnpm -r build",
-    "dev:bridge": "corepack pnpm --filter @vibe-figma/ui-bridge exec vibe-figma-bridge",
-    "dev:mcp": "corepack pnpm --filter @vibe-figma/mcp-server exec vibe-figma-mcp",
+    "cli": "node ./packages/cli/bin/vibe-figma.mjs",
+    "dev:cli": "node ./packages/cli/bin/vibe-figma.mjs dev",
     "lint": "eslint .",
     "package:artifacts": "node ./scripts/package-artifacts.mjs",
+    "test:e2e:figma": "node ./scripts/figma-e2e-smoke.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

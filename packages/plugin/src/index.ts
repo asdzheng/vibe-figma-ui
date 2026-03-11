@@ -15,16 +15,21 @@ export {
   captureCurrentSelection,
   initializePluginRuntimeWithApi,
   initializePluginRuntime,
+  PLUGIN_UI_SIZE,
   PLUGIN_VERSION
 } from "./main.js";
 export {
-  normalizeBridgeBaseUrl,
+  normalizeCompanionBaseUrl,
   renderPluginUiHtml,
   type PluginMainToUiMessage,
   type PluginUiToMainMessage
 } from "./ui.js";
-export { buildSelectionCaptureFromRuntime } from "./runtime/capture.js";
+export {
+  buildSelectionCaptureFromRuntime,
+  buildSelectionCaptureFromRuntimeAsync
+} from "./runtime/capture.js";
 export { extractNodeFromRuntime } from "./runtime/extract-node.js";
+export { prepareRuntimeCaptureInput } from "./runtime/live-capture.js";
 export { RuntimeRegistryCollector } from "./runtime/registry-collector.js";
 export type {
   RuntimeComponentNode,

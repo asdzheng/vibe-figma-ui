@@ -2,28 +2,25 @@
 
 ## Active Track
 
-The next implementation track is expanding live plugin runtime extraction
-coverage for additional Figma node families and mixed text edge cases.
+The current track is snapshot-path and capture-fidelity hardening after the CLI-first V2 runtime migration.
 
 ## Current Focus
 
-- Keep the new packaging and local development workflow stable while extending
-  runtime capture shape.
-- Preserve current package boundaries:
-  - `plugin` captures runtime data
-  - `ui-bridge` transports and stores captures
-  - `capture-core` normalizes and validates
-  - `schema` validates
-  - `mcp-server` exposes downstream tools
+- Validate the visible plugin-to-companion session flow against a real Figma desktop session.
+- Confirm the new SVG snapshot output is a practical verification artifact alongside canonical JSON export.
+- Keep the active architecture boundaries clean:
+  - `plugin` is the Figma-side runtime endpoint
+  - `cli` is the host-side control surface and local companion
+  - `capture-core` and `schema` remain the product core
 
 ## Next Concrete Tasks
 
-1. Add runtime extraction coverage for vectors, boolean operations, and layout grids.
-2. Handle mixed-text edge cases without regressing deterministic capture output.
-3. Add fixtures and tests for larger selections or page-level captures once those node families are supported.
+1. Execute the updated manual verification checklist in `progress/06-manual-verification.md`, including `vibe-figma screenshot`.
+2. Re-run workspace verification in an environment that permits localhost listeners for the companion tests.
+3. Resume capture-runtime hardening work on top of the new CLI-first path, prioritizing policy injection and richer preserved-instance semantics.
 
 ## Exit Criteria
 
-- Live plugin capture handles the additional node families without schema regressions.
-- New runtime output stays deterministic in tests and fixtures.
-- Bridge and MCP consumers continue to accept the expanded capture shape without duplicate logic.
+- The V2 workspace installs cleanly again.
+- `lint`, `typecheck`, `test`, and `build` are green on the active packages.
+- Manual Figma verification confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output.
