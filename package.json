@@ -6,8 +6,8 @@
   "packageManager": "pnpm@10.31.0",
   "scripts": {
     "build": "corepack pnpm -r build",
-    "cli": "corepack pnpm --filter @vibe-figma/cli exec vibe-figma",
-    "dev:cli": "corepack pnpm --filter @vibe-figma/cli exec vibe-figma dev",
+    "cli": "node ./packages/cli/bin/vibe-figma.mjs",
+    "dev:cli": "node ./packages/cli/bin/vibe-figma.mjs dev",
     "lint": "eslint .",
     "package:artifacts": "node ./scripts/package-artifacts.mjs",
     "test:e2e:figma": "node ./scripts/figma-e2e-smoke.mjs",

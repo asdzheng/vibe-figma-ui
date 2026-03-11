@@ -3,7 +3,7 @@
 ## Current Known Gaps
 
 - The live plugin runtime still captures component instances with the default preserve behavior because policy rule injection is not wired into the runtime flow yet.
-- The CLI `screenshot` command is intentionally a stub in the initial V2 pass; visual proof still requires manual Figma-side tooling.
+- The new CLI `screenshot` command produces a reverse-rendered SVG, not a native Figma raster screenshot, so exact visual parity still requires manual comparison in Figma.
 - The active workspace has moved away from bridge and MCP, but the old `packages/ui-bridge` and `packages/mcp-server` directories still exist in-repo as deferred legacy code.
 - Newer Figma desktop builds require manifest access declarations that were missing in the repo until the 2026-03-10 plugin manifest/runtime refresh; the remaining verification gap is a real desktop re-import check.
 
@@ -12,7 +12,7 @@
 - Real Figma Plugin API behavior may surface reconnect or session edge cases not covered by the current static refactor.
 - Runtime extraction can still become noisy as more node families are added if deterministic shaping is not preserved.
 - Leaving deferred legacy code in the repository for too long may create drift or confusion unless it is cleaned up later.
-- Screenshot and richer visual verification remain a manual workflow gap for agent loops.
+- Preserved remote instances can still lose internal semantic detail in reverse-render snapshots unless the capture includes richer per-instance properties or optional visual assets.
 
 ## Current Blocker
 

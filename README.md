@@ -26,7 +26,7 @@ Canonical JSON and component behavior:
 
 - captures the current Figma selection into canonical JSON
 - preserves component, style, and variable metadata for downstream tooling
-- gives agents a narrow local command surface: `status`, `capture`, `export-json`, `logs`, `doctor`
+- gives agents a narrow local command surface: `status`, `capture`, `export-json`, `screenshot`, `logs`, `doctor`
 - keeps the runtime shape simple: plugin in Figma, CLI on the host
 
 ## Prerequisites
@@ -121,12 +121,13 @@ Once the companion is running and the plugin is open in Figma:
 corepack pnpm cli -- status
 corepack pnpm cli -- capture
 corepack pnpm cli -- export-json --output artifacts/manual/capture.json
+corepack pnpm cli -- screenshot --output artifacts/manual/live-screenshot.svg
 corepack pnpm cli -- logs --limit 100
 ```
 
 `export-json` always prints the canonical JSON document to stdout. `--output` also writes the same JSON to disk.
 
-`screenshot` exists as a CLI command surface but currently returns an explicit "not implemented yet" message. Visual verification is still a manual Figma-side step in V2.
+`screenshot` now renders a local SVG verification artifact from canonical JSON. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
 
 ## Typical Local Flow
 
@@ -136,6 +137,7 @@ corepack pnpm cli -- logs --limit 100
 4. Leave the plugin window open. It now shows connection state, page name, selection count, and the latest capture summary while it retries the companion connection automatically.
 5. Use `corepack pnpm cli -- status` to confirm the live session.
 6. Use `corepack pnpm cli -- capture` or `corepack pnpm cli -- export-json`.
+7. Use `corepack pnpm cli -- screenshot --output artifacts/manual/live-screenshot.svg` when you need a local visual artifact for review.
 
 ## Live Figma Smoke Loop
 
@@ -154,12 +156,23 @@ The script:
 
 The script still requires a human to import and run the plugin in Figma desktop, then keep the plugin window open until the report is written.
 
+## Reverse-Render Validation
+
+The current live export reverse-render validation is documented in:
+
+- [docs/reverse-render-validation-2026-03-11.md](docs/reverse-render-validation-2026-03-11.md)
+
+The checked validation artifact is:
+
+- `artifacts/e2e/current-export.snapshot.svg`
+
 ## Automated Vs Manual
 
 Automated in V2:
 
 - local companion startup with `corepack pnpm dev:cli`
 - live CLI commands: `status`, `capture`, `export-json`, `logs`, `doctor`
+- reverse-rendered SVG snapshots through `vibe-figma screenshot`
 - assisted smoke validation with `corepack pnpm test:e2e:figma`
 - canonical JSON generation and report writing
 
@@ -168,7 +181,7 @@ Still manual in Figma:
 - importing the plugin manifest into Figma desktop
 - opening a Figma file with a real selection
 - running the `Vibe Figma UI` plugin and keeping its window open during the smoke loop
-- visually inspecting the design in Figma because `vibe-figma screenshot` is still intentionally unimplemented
+- visually comparing the reverse-rendered SVG against Figma when exact pixel output matters
 
 ## Package Layout
 

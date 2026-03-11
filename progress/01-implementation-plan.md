@@ -41,5 +41,7 @@ Status legend:
 
 ## Phase 6: Verification
 
-- `[doing]` Re-run install, typecheck, test, and build once dependencies can be restored.
-- `[doing]` Run live Figma manual verification against the updated plugin and companion flow.
+- `[done]` Add a practical reverse-render validation artifact for the live exported JSON.
+- `[done]` Implement a thin local SVG snapshot path behind `vibe-figma screenshot`.
+- `[doing]` Re-run the full automated suite in an environment that permits localhost listeners.
+- `[doing]` Run live Figma manual verification against the updated plugin, companion flow, and snapshot path.

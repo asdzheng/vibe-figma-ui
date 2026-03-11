@@ -9,7 +9,7 @@
 ## CLI Companion
 
 - Add optional file-based session or latest-capture persistence only if a concrete workflow requires it.
-- Add a real screenshot path if Figma-side implementation becomes practical.
+- Add optional raster or browser-rendered snapshot output if pixel-oriented review becomes worth the added cost.
 - Add session selection ergonomics for multiple simultaneous plugin windows if that becomes a routine workflow.
 
 ## Compatibility

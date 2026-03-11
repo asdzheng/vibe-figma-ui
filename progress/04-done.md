@@ -1,5 +1,12 @@
 # Done
 
+## 2026-03-11
+
+- Implemented `vibe-figma screenshot` as a thin local SVG snapshot path that renders from live canonical JSON or an exported JSON file.
+- Added a reverse-render validation experiment for `artifacts/e2e/current-export.json` and generated `artifacts/e2e/current-export.snapshot.svg`.
+- Added CLI tests for screenshot rendering and a validation test that exercises the current live export through the new SVG renderer.
+- Updated README, manual verification guidance, and progress notes to document the new snapshot workflow and its current fidelity limits.
+
 ## 2026-03-10
 
 - Implemented the first V2 CLI-first runtime pass from `docs/rfcs/v2-runtime-architecture.md` and `docs/rfcs/cli-first.md`.

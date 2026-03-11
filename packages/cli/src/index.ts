@@ -1,6 +1,11 @@
 export { createFetchCompanionClient, type CompanionClient } from "./client.js";
 export { runCli, CLI_VERSION } from "./cli.js";
 export {
+  renderDesignDocumentSnapshot,
+  type SnapshotRenderResult,
+  type SnapshotRenderStats
+} from "./snapshot.js";
+export {
   startCompanionHttpServer,
   type CompanionHttpServer,
   type StartCompanionHttpServerOptions

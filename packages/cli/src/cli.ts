@@ -1,11 +1,12 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, parse, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import type { DesignDocument } from "@vibe-figma/schema";
+import { designDocumentSchema, type DesignDocument } from "@vibe-figma/schema";
 
 import { createFetchCompanionClient } from "./client.js";
+import { renderDesignDocumentSnapshot } from "./snapshot.js";
 import { startCompanionHttpServer } from "./server.js";
 import {
   DEFAULT_COMPANION_HOST,
@@ -17,6 +18,7 @@ export const CLI_VERSION = "0.8.0";
 
 type ParsedGlobalOptions = {
   command: string;
+  inputPath?: string;
   outputPath?: string;
   sessionId?: string;
   targetUrl: string;
@@ -121,7 +123,7 @@ function usage(): string {
     "  export-json [--session <id>] [--output <path>] [--companion-url <url>]",
     "  logs [--session <id>] [--limit <n>] [--companion-url <url>]",
     "  doctor [--companion-url <url>]",
-    "  screenshot",
+    "  screenshot [--input <path>] [--output <path>] [--session <id>] [--companion-url <url>]",
     ""
   ].join("\n");
 }
@@ -130,7 +132,9 @@ function parseGlobalOptions(
   argv: readonly string[],
   env: NodeJS.ProcessEnv
 ): ParsedGlobalOptions {
-  const [command = "help", ...rest] = argv;
+  const normalizedArgv = argv[0] === "--" ? argv.slice(1) : argv;
+  const [command = "help", ...rest] = normalizedArgv;
+  let inputPath: string | undefined;
   let outputPath: string | undefined;
   let sessionId: string | undefined;
   let targetUrl = readDefaultBaseUrl(env);
@@ -171,6 +175,17 @@ function parseGlobalOptions(
       continue;
     }
 
+    if (argument === "--input") {
+      inputPath = parseOptionValue(argument, rest[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument.startsWith("--input=")) {
+      inputPath = argument.slice("--input=".length);
+      continue;
+    }
+
     if (argument === "--companion-url") {
       targetUrl = parseOptionValue(argument, rest[index + 1]).replace(/\/$/, "");
       index += 1;
@@ -185,6 +200,7 @@ function parseGlobalOptions(
 
   return {
     command,
+    ...(inputPath ? { inputPath } : {}),
     ...(outputPath ? { outputPath } : {}),
     ...(sessionId ? { sessionId } : {}),
     targetUrl
@@ -219,6 +235,24 @@ async function writeExport(document: DesignDocument, outputPath: string): Promis
 
   await mkdir(dirname(resolvedPath), { recursive: true });
   await writeFile(resolvedPath, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+}
+
+async function readDocumentFromFile(inputPath: string): Promise<DesignDocument> {
+  const resolvedPath = resolve(inputPath);
+  const fileContents = await readFile(resolvedPath, "utf8");
+
+  return designDocumentSchema.parse(JSON.parse(fileContents) as unknown);
+}
+
+function resolveDefaultScreenshotPath(inputPath: string | undefined): string {
+  if (!inputPath) {
+    return resolve("artifacts/manual/live-screenshot.svg");
+  }
+
+  const resolvedPath = resolve(inputPath);
+  const parsedPath = parse(resolvedPath);
+
+  return resolve(parsedPath.dir, `${parsedPath.name}.snapshot.svg`);
 }
 
 function createInitPayload(targetUrl: string): {
@@ -291,12 +325,6 @@ async function runDevCommand(env: NodeJS.ProcessEnv): Promise<void> {
   await waitForever();
 }
 
-function failUnsupportedScreenshot(): never {
-  throw new Error(
-    "Screenshot capture is not implemented in the initial V2 CLI runtime. Use the plugin UI or external Figma observability tooling for visual verification."
-  );
-}
-
 export async function runCli(
   argv: readonly string[],
   env: NodeJS.ProcessEnv = process.env
@@ -316,10 +344,6 @@ export async function runCli(
   if (options.command === "dev") {
     await runDevCommand(env);
     return;
-  }
-
-  if (options.command === "screenshot") {
-    failUnsupportedScreenshot();
   }
 
   const client = createFetchCompanionClient({
@@ -384,6 +408,32 @@ export async function runCli(
     }
 
     printJson(capture.document);
+    return;
+  }
+
+  if (options.command === "screenshot") {
+    const document = options.inputPath
+      ? await readDocumentFromFile(options.inputPath)
+      : (
+          await client.requestCapture({
+            ...(options.sessionId ? { sessionId: options.sessionId } : {})
+          })
+        ).document;
+    const renderResult = renderDesignDocumentSnapshot(document);
+    const outputPath = options.outputPath ?? resolveDefaultScreenshotPath(options.inputPath);
+
+    await mkdir(dirname(resolve(outputPath)), { recursive: true });
+    await writeFile(resolve(outputPath), `${renderResult.svg}\n`, "utf8");
+
+    printJson({
+      ...summarizeDocument(document),
+      materializedInstanceCount: renderResult.stats.materializedInstanceCount,
+      outputPath: resolve(outputPath),
+      placeholderInstanceCount: renderResult.stats.fallbackInstanceCount,
+      source: options.inputPath ? "file" : "live-capture",
+      svgHeight: renderResult.height,
+      svgWidth: renderResult.width
+    });
     return;
   }
 

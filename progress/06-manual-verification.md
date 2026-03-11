@@ -1,6 +1,6 @@
 # Manual Verification
 
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 
 These steps cover the parts of the CLI-first runtime that still need a real Figma desktop session.
 
@@ -66,7 +66,20 @@ Expected result:
 - `status` returns to `connected: true` after the companion restarts.
 - `logs` include session-connect and plugin UI log entries from the reconnect cycle.
 
-## Scenario 5: Assisted Smoke Loop
+## Scenario 5: SVG Snapshot Output
+
+1. Open a Figma file with a non-empty selection and keep the plugin running.
+2. Run `corepack pnpm cli -- screenshot --output artifacts/manual/live-screenshot.svg`.
+3. Open `artifacts/manual/live-screenshot.svg`.
+
+Expected result:
+
+- The CLI captures live canonical JSON first, then writes a local SVG snapshot.
+- The printed summary includes the output path plus SVG width and height.
+- The SVG preserves the captured screen hierarchy and Material 3 component intent closely enough for code review or codegen validation.
+- The artifact is clearly a reverse-rendered verification view, not a native Figma bitmap screenshot.
+
+## Scenario 6: Assisted Smoke Loop
 
 1. Start the companion with `corepack pnpm dev:cli`.
 2. Run `corepack pnpm test:e2e:figma`.
@@ -84,5 +97,5 @@ Expected result:
 
 - Icon normalization, helper inlining, ignored helpers, remote-library preservation, and variable-mode shaping still rely on the same core normalization and checked-in fixtures.
 - Live runtime policy injection is still missing, so real Figma runs should still be expected to default to preserved instances unless policy input is wired in later.
-- `vibe-figma screenshot` is not implemented yet; visual verification still requires manual Figma inspection or separate tooling.
-- The practical manual boundary is now: import the plugin, run it in Figma desktop, keep the window open, and visually inspect the design when needed.
+- `vibe-figma screenshot` now produces a practical SVG verification artifact, but exact visual parity still requires manual comparison against the live Figma canvas.
+- The practical manual boundary is now: import the plugin, run it in Figma desktop, keep the window open, and compare the reverse-rendered SVG to Figma when exact fidelity matters.
