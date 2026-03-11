@@ -42,6 +42,11 @@ type NodeSize = {
   width: number;
 };
 
+type NodePosition = {
+  x: number;
+  y: number;
+};
+
 type InstanceMetadata = {
   componentName: string;
   componentSetName: string | null;
@@ -86,6 +91,93 @@ function getNodePosition(node: DesignNode): { x: number; y: number } {
     x: node.bounds?.x ?? 0,
     y: node.bounds?.y ?? 0
   };
+}
+
+function getPadding(
+  node: DesignNode
+): { bottom: number; left: number; right: number; top: number } {
+  return {
+    bottom: node.layout?.padding?.bottom ?? 0,
+    left: node.layout?.padding?.left ?? 0,
+    right: node.layout?.padding?.right ?? 0,
+    top: node.layout?.padding?.top ?? 0
+  };
+}
+
+function hasExplicitPosition(node: DesignNode): boolean {
+  return node.bounds?.x !== undefined || node.bounds?.y !== undefined;
+}
+
+function getFlowLayoutPositions(parent: DesignNode): Map<string, NodePosition> {
+  if (parent.layout?.mode !== "row" && parent.layout?.mode !== "column") {
+    return new Map<string, NodePosition>();
+  }
+
+  const positions = new Map<string, NodePosition>();
+  const flowChildren = (parent.children ?? []).filter(
+    (child) => child.layout?.position !== "absolute" && !hasExplicitPosition(child)
+  );
+
+  if (flowChildren.length === 0) {
+    return positions;
+  }
+
+  const parentSize = getNodeSize(parent);
+  const padding = getPadding(parent);
+  const justifyContent = parent.layout?.align?.justifyContent ?? "start";
+  const alignItems = parent.layout?.align?.alignItems ?? "start";
+  const isRow = parent.layout.mode === "row";
+  const gap = parent.layout?.gap ?? 0;
+  const totalMainSize = flowChildren.reduce((sum, child) => {
+    const size = getNodeSize(child);
+
+    return sum + (isRow ? size.width : size.height);
+  }, 0);
+  const availableMainSize = Math.max(
+    (isRow
+      ? parentSize.width - padding.left - padding.right
+      : parentSize.height - padding.top - padding.bottom),
+    0
+  );
+  const baseGapTotal = Math.max(flowChildren.length - 1, 0) * gap;
+  const contentMainSize = totalMainSize + baseGapTotal;
+  const dynamicGap =
+    justifyContent === "space-between" && flowChildren.length > 1
+      ? Math.max((availableMainSize - totalMainSize) / (flowChildren.length - 1), 0)
+      : gap;
+  const startMainOffset =
+    justifyContent === "end"
+      ? Math.max(availableMainSize - contentMainSize, 0)
+      : justifyContent === "center"
+        ? Math.max((availableMainSize - contentMainSize) / 2, 0)
+        : 0;
+
+  let cursor = (isRow ? padding.left : padding.top) + startMainOffset;
+
+  for (const child of flowChildren) {
+    const size = getNodeSize(child);
+    const availableCrossSize = Math.max(
+      (isRow
+        ? parentSize.height - padding.top - padding.bottom
+        : parentSize.width - padding.left - padding.right),
+      0
+    );
+    const crossSize = isRow ? size.height : size.width;
+    const crossOffset =
+      alignItems === "end"
+        ? Math.max(availableCrossSize - crossSize, 0)
+        : alignItems === "center"
+          ? Math.max((availableCrossSize - crossSize) / 2, 0)
+          : 0;
+
+    positions.set(child.pluginNodeId, {
+      x: isRow ? cursor : padding.left + crossOffset,
+      y: isRow ? padding.top + crossOffset : cursor
+    });
+    cursor += (isRow ? size.width : size.height) + dynamicGap;
+  }
+
+  return positions;
 }
 
 function getRadiusValue(radius: RadiusValue | undefined): number {
@@ -745,16 +837,26 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
 }
 
 function renderChildren(node: DesignNode, context: RenderContext): string {
-  return (node.children ?? []).map((child) => renderNode(child, context)).join("");
+  const inferredPositions = getFlowLayoutPositions(node);
+
+  return (node.children ?? [])
+    .map((child) => {
+      const inferredPosition = inferredPositions.get(child.pluginNodeId);
+
+      return renderNode(child, context, inferredPosition ? { position: inferredPosition } : {});
+    })
+    .join("");
 }
 
 function renderNode(
   node: DesignNode,
   context: RenderContext,
-  options: { ignorePosition?: boolean } = {}
+  options: { ignorePosition?: boolean; position?: NodePosition } = {}
 ): string {
   context.stats.nodeCount += 1;
-  const { x, y } = options.ignorePosition ? { x: 0, y: 0 } : getNodePosition(node);
+  const { x, y } = options.ignorePosition
+    ? { x: 0, y: 0 }
+    : options.position ?? getNodePosition(node);
   const { width, height } = getNodeSize(node);
   let content = "";
 

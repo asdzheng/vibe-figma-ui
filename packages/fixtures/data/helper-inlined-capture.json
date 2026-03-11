@@ -10,9 +10,7 @@
     },
     "selection": [
       {
-        "id": "9:10",
-        "name": "Auto Layout / Stack",
-        "type": "INSTANCE"
+        "id": "9:10"
       }
     ],
     "options": {
@@ -23,8 +21,6 @@
   "roots": [
     {
       "pluginNodeId": "9:10",
-      "restNodeId": "9:10",
-      "figmaType": "INSTANCE",
       "kind": "frame",
       "name": "Auto Layout / Stack",
       "bounds": {
@@ -32,7 +28,6 @@
         "height": 72
       },
       "layout": {
-        "position": "flow",
         "mode": "column",
         "gap": 8,
         "padding": {
@@ -45,8 +40,6 @@
       "children": [
         {
           "pluginNodeId": "9:11",
-          "restNodeId": "9:11",
-          "figmaType": "TEXT",
           "kind": "text",
           "name": "Stack Label",
           "bounds": {
@@ -75,8 +68,6 @@
   "registries": {
     "components": {
       "component:auto-layout-stack": {
-        "ref": "component:auto-layout-stack",
-        "key": "auto-layout-stack",
         "name": "Auto Layout / Stack"
       }
     },

@@ -2,12 +2,12 @@
 
 ## Active Track
 
-The current track is snapshot-path and capture-fidelity hardening after the CLI-first V2 runtime migration.
+The current track is V3 canonical JSON minimization on top of the CLI-first V2 runtime migration.
 
 ## Current Focus
 
-- Validate the visible plugin-to-companion session flow against a real Figma desktop session.
-- Confirm the new SVG snapshot output is a practical verification artifact alongside canonical JSON export.
+- Reduce the default canonical JSON until it is meaningfully small for AI code generation.
+- Separate default semantic payload from debug or audit payloads.
 - Keep the active architecture boundaries clean:
   - `plugin` is the Figma-side runtime endpoint
   - `cli` is the host-side control surface and local companion
@@ -15,12 +15,13 @@ The current track is snapshot-path and capture-fidelity hardening after the CLI-
 
 ## Next Concrete Tasks
 
-1. Execute the updated manual verification checklist in `progress/06-manual-verification.md`, including `vibe-figma screenshot`.
-2. Re-run workspace verification in an environment that permits localhost listeners for the companion tests.
-3. Resume capture-runtime hardening work on top of the new CLI-first path, prioritizing policy injection and richer preserved-instance semantics.
+1. Implement the low-risk canonical cuts from `docs/rfcs/design-json-v3-optimization.md`: redundant ids, raw types, default booleans, flow-layout coordinates, and float rounding.
+2. Replace full instance property payloads with sparse override diffs and remove duplicate leaf-component-plus-variant serialization.
+3. Replace full variable mode matrices in canonical output with top-level mode context plus active-slice token values.
+4. Add size-budget verification for `artifacts/e2e/current-export.json` and new slim-canonical fixtures.
 
 ## Exit Criteria
 
-- The V2 workspace installs cleanly again.
+- The representative canonical export is within the agreed V3 size budget.
 - `lint`, `typecheck`, `test`, and `build` are green on the active packages.
-- Manual Figma verification confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output.
+- Manual Figma verification still confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output after the schema cuts.

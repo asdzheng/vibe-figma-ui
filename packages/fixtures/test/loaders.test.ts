@@ -70,23 +70,19 @@ describe("fixture loaders", () => {
       }
     });
     await expect(loadCaptureFixtureDocument("variableModes")).resolves.toMatchObject({
-      roots: [
-        {
-          designSystem: {
-            resolvedVariableModes: {
-              "VariableCollectionId:theme": "mode-dark"
-            }
-          }
+      capture: {
+        modeContext: {
+          "VariableCollectionId:theme": "mode-dark"
         }
-      ],
+      },
       registries: {
         variables: {
           "variable:surface-background": {
-            modes: expect.arrayContaining([
+            modes: [
               expect.objectContaining({
                 modeId: "mode-dark"
               })
-            ])
+            ]
           }
         }
       }

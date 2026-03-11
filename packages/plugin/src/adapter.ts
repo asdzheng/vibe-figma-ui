@@ -2,7 +2,6 @@ import { createDesignDocument } from "@vibe-figma/capture-core";
 import {
   createEmptyRegistries,
   createRegistryRef,
-  type ComponentRegistryEntry,
   type ComponentPropertyValue,
   type DesignDocument,
   type DesignNode,
@@ -20,9 +19,6 @@ import type {
   FigmaPaintLike
 } from "./model.js";
 
-type ComponentPropertyDefinitionEntry = NonNullable<
-  ComponentRegistryEntry["properties"]
->[string];
 type LayoutAlignItems = "start" | "end" | "center" | "stretch" | "baseline";
 type LayoutJustifyContent = "start" | "end" | "center" | "space-between";
 type LayoutSizingMode = "fixed" | "fill" | "hug";
@@ -123,19 +119,79 @@ function mapComponentPropertyValue(
   };
 }
 
-function mapComponentPropertyDefinition(
-  property: FigmaComponentPropertyDefinitionLike
-): ComponentPropertyDefinitionEntry {
+function roundGeometryValue(value: number): number {
+  const rounded = Math.round(value * 100) / 100;
+
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+function normalizeOptionalNumber(value: number | undefined): number | undefined {
+  return value === undefined ? undefined : roundGeometryValue(value);
+}
+
+function hasNonDefaultObjectValue(value: Record<string, number | undefined>): boolean {
+  return Object.values(value).some((entry) => entry !== undefined && entry !== 0);
+}
+
+function mergeComponentPropertyDefinitions(
+  node: FigmaNodeLike
+): Record<string, FigmaComponentPropertyDefinitionLike> {
   return {
-    ...(property.defaultValue !== undefined
-      ? { defaultValue: property.defaultValue }
-      : {}),
-    ...(property.preferredValues
-      ? { preferredValues: property.preferredValues }
-      : {}),
-    type: property.type,
-    ...(property.variantOptions ? { variantOptions: property.variantOptions } : {})
+    ...(node.mainComponent?.componentSet?.properties ?? {}),
+    ...(node.mainComponent?.properties ?? {})
   };
+}
+
+function isPropertyDefaultValue(
+  property: FigmaComponentPropertyLike,
+  definition: FigmaComponentPropertyDefinitionLike | undefined
+): boolean {
+  return definition?.defaultValue === property.value;
+}
+
+function buildSparseInstanceBinding(node: FigmaNodeLike): {
+  properties?: Record<string, ComponentPropertyValue>;
+  variant?: Record<string, string>;
+} | undefined {
+  const definitions = mergeComponentPropertyDefinitions(node);
+  const componentProperties = node.componentProperties ?? {};
+  const properties = Object.fromEntries(
+    Object.entries(componentProperties)
+      .filter(([name, property]) => {
+        if (property.type === "VARIANT") {
+          return false;
+        }
+
+        return (
+          property.variableRef !== undefined ||
+          !isPropertyDefaultValue(property, definitions[name])
+        );
+      })
+      .map(([name, property]) => [name, mapComponentPropertyValue(property)])
+  );
+  const variant = Object.fromEntries(
+    Object.entries(componentProperties)
+      .filter(
+        ([name, property]) =>
+          property.type === "VARIANT" &&
+          typeof property.value === "string" &&
+          !isPropertyDefaultValue(property, definitions[name])
+      )
+      .map(([name, property]) => [name, property.value as string] as const)
+  );
+  const fallbackVariant =
+    Object.keys(componentProperties).length === 0
+    ? node.variantProperties
+    : undefined;
+
+  return Object.keys(properties).length > 0 || Object.keys(variant).length > 0
+    ? {
+        ...(Object.keys(properties).length > 0 ? { properties } : {}),
+        ...(Object.keys(variant).length > 0 ? { variant } : {})
+      }
+    : fallbackVariant && Object.keys(fallbackVariant).length > 0
+      ? { variant: fallbackVariant }
+    : undefined;
 }
 
 function resolveComponentRef(mainComponent: FigmaComponentLike): string {
@@ -186,18 +242,6 @@ function buildRegistries(selection: readonly FigmaNodeLike[]): DesignRegistries 
           ? { library: { name: node.mainComponent.libraryName } }
           : {}),
         name: node.mainComponent.name,
-        ...(node.mainComponent.properties
-          ? {
-              properties: Object.fromEntries(
-                Object.entries(node.mainComponent.properties).map(
-                  ([name, property]) => [
-                    name,
-                    mapComponentPropertyDefinition(property)
-                  ]
-                )
-              )
-            }
-          : {}),
         ref: componentRef,
         ...(node.mainComponent.remote !== undefined
           ? { remote: node.mainComponent.remote }
@@ -210,18 +254,6 @@ function buildRegistries(selection: readonly FigmaNodeLike[]): DesignRegistries 
             ? { key: node.mainComponent.componentSet.key }
             : {}),
           name: node.mainComponent.componentSet.name,
-          ...(node.mainComponent.componentSet.properties
-            ? {
-                properties: Object.fromEntries(
-                  Object.entries(node.mainComponent.componentSet.properties).map(
-                    ([name, property]) => [
-                      name,
-                      mapComponentPropertyDefinition(property)
-                    ]
-                  )
-                )
-              }
-            : {}),
           ref: componentSetRef,
           ...(node.mainComponent.componentSet.remote !== undefined
             ? { remote: node.mainComponent.componentSet.remote }
@@ -312,45 +344,16 @@ function buildDesignSystemBinding(node: FigmaNodeLike) {
       ? { resolvedVariableModes: node.resolvedVariableModes }
       : {})
   };
-  const variantFromProperties = node.componentProperties
-    ? Object.fromEntries(
-        Object.entries(node.componentProperties)
-          .filter(
-            ([, property]) =>
-              property.type === "VARIANT" && typeof property.value === "string"
-          )
-          .map(([name, property]) => [name, property.value as string] as const)
-      )
-    : undefined;
-
   if (node.type !== "INSTANCE" || !node.mainComponent) {
     return Object.keys(baseBinding).length > 0 ? baseBinding : undefined;
   }
 
+  const sparseInstanceBinding = buildSparseInstanceBinding(node);
+
   return {
     ...baseBinding,
     componentRef: resolveComponentRef(node.mainComponent),
-    instance: {
-      ...(node.componentProperties
-        ? {
-            properties: Object.fromEntries(
-              Object.entries(node.componentProperties).map(([name, property]) => [
-                name,
-                mapComponentPropertyValue(property)
-              ])
-            )
-          }
-        : {}),
-      ...((variantFromProperties && Object.keys(variantFromProperties).length > 0) ||
-      (node.variantProperties && Object.keys(node.variantProperties).length > 0)
-        ? {
-            variant:
-              variantFromProperties && Object.keys(variantFromProperties).length > 0
-                ? variantFromProperties
-                : node.variantProperties
-          }
-        : {})
-    }
+    ...(sparseInstanceBinding ? { instance: sparseInstanceBinding } : {})
   };
 }
 
@@ -358,6 +361,26 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
   const designSystem = buildDesignSystemBinding(node);
   const fills = node.fills?.map((paint) => mapPaint(paint));
   const strokes = node.strokes?.map((paint) => mapPaint(paint));
+  const kind = mapNodeKind(node.type);
+  const padding = {
+    ...(normalizeOptionalNumber(node.paddingBottom) &&
+    normalizeOptionalNumber(node.paddingBottom) !== 0
+      ? { bottom: normalizeOptionalNumber(node.paddingBottom) }
+      : {}),
+    ...(normalizeOptionalNumber(node.paddingLeft) &&
+    normalizeOptionalNumber(node.paddingLeft) !== 0
+      ? { left: normalizeOptionalNumber(node.paddingLeft) }
+      : {}),
+    ...(normalizeOptionalNumber(node.paddingRight) &&
+    normalizeOptionalNumber(node.paddingRight) !== 0
+      ? { right: normalizeOptionalNumber(node.paddingRight) }
+      : {}),
+    ...(normalizeOptionalNumber(node.paddingTop) &&
+    normalizeOptionalNumber(node.paddingTop) !== 0
+      ? { top: normalizeOptionalNumber(node.paddingTop) }
+      : {})
+  };
+  const isUnknownType = kind === "unknown";
 
   return {
     ...(node.width !== undefined ||
@@ -367,13 +390,17 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
     node.rotation !== undefined
       ? {
           bounds: {
-            ...(node.height !== undefined ? { height: node.height } : {}),
-            ...(node.rotation !== undefined && node.rotation !== 0
-              ? { rotation: node.rotation }
+            ...(node.height !== undefined
+              ? { height: roundGeometryValue(node.height) }
               : {}),
-            ...(node.width !== undefined ? { width: node.width } : {}),
-            ...(node.x !== undefined ? { x: node.x } : {}),
-            ...(node.y !== undefined ? { y: node.y } : {})
+            ...(node.rotation !== undefined && node.rotation !== 0
+              ? { rotation: roundGeometryValue(node.rotation) }
+              : {}),
+            ...(node.width !== undefined
+              ? { width: roundGeometryValue(node.width) }
+              : {}),
+            ...(node.x !== undefined ? { x: roundGeometryValue(node.x) } : {}),
+            ...(node.y !== undefined ? { y: roundGeometryValue(node.y) } : {})
           }
         }
       : {}),
@@ -439,7 +466,7 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
               ? {
                   radius: {
                     mode: "uniform",
-                    value: node.cornerRadius
+                    value: roundGeometryValue(node.cornerRadius)
                   }
                 }
               : node.topLeftRadius !== undefined ||
@@ -448,11 +475,11 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
                   node.bottomLeftRadius !== undefined
                 ? {
                     radius: {
-                      bottomLeft: node.bottomLeftRadius ?? 0,
-                      bottomRight: node.bottomRightRadius ?? 0,
+                      bottomLeft: roundGeometryValue(node.bottomLeftRadius ?? 0),
+                      bottomRight: roundGeometryValue(node.bottomRightRadius ?? 0),
                       mode: "corners",
-                      topLeft: node.topLeftRadius ?? 0,
-                      topRight: node.topRightRadius ?? 0
+                      topLeft: roundGeometryValue(node.topLeftRadius ?? 0),
+                      topRight: roundGeometryValue(node.topRightRadius ?? 0)
                     }
                   }
                 : {}),
@@ -470,7 +497,7 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
                         : {}),
                       paints: strokes,
                       ...(node.strokeWeight !== undefined
-                        ? { width: node.strokeWeight }
+                        ? { width: roundGeometryValue(node.strokeWeight) }
                         : {})
                     }
                   ]
@@ -479,8 +506,8 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
           }
         }
       : {}),
-    figmaType: node.type,
-    kind: mapNodeKind(node.type),
+    ...(isUnknownType ? { figmaType: node.type } : {}),
+    kind,
     ...(node.layoutMode ||
     node.layoutPositioning ||
     node.itemSpacing !== undefined ||
@@ -515,7 +542,9 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
                 }
               : {}),
             ...(node.constraints ? { constraints: node.constraints } : {}),
-            ...(node.itemSpacing !== undefined ? { gap: node.itemSpacing } : {}),
+            ...(node.itemSpacing !== undefined && node.itemSpacing !== 0
+              ? { gap: roundGeometryValue(node.itemSpacing) }
+              : {}),
             ...(node.layoutMode
               ? {
                   mode:
@@ -541,32 +570,11 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
                   }
                 }
               : {}),
-            ...(node.layoutPositioning
-              ? {
-                  position:
-                    node.layoutPositioning === "ABSOLUTE" ? "absolute" : "flow"
-                }
+            ...(node.layoutPositioning === "ABSOLUTE"
+              ? { position: "absolute" as const }
               : {}),
-            ...(node.paddingTop !== undefined ||
-            node.paddingRight !== undefined ||
-            node.paddingBottom !== undefined ||
-            node.paddingLeft !== undefined
-              ? {
-                  padding: {
-                    ...(node.paddingBottom !== undefined
-                      ? { bottom: node.paddingBottom }
-                      : {}),
-                    ...(node.paddingLeft !== undefined
-                      ? { left: node.paddingLeft }
-                      : {}),
-                    ...(node.paddingRight !== undefined
-                      ? { right: node.paddingRight }
-                      : {}),
-                    ...(node.paddingTop !== undefined ? { top: node.paddingTop } : {})
-                  }
-                }
-              : {}),
-            ...(node.layoutWrap ? { wrap: node.layoutWrap === "WRAP" } : {}),
+            ...(hasNonDefaultObjectValue(padding) ? { padding } : {}),
+            ...(node.layoutWrap === "WRAP" ? { wrap: true } : {}),
             ...(node.clipsContent
               ? {
                   overflow: {
@@ -578,10 +586,9 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
           }
         }
       : {}),
-    ...(node.locked !== undefined ? { locked: node.locked } : {}),
+    ...(node.locked ? { locked: true } : {}),
     name: node.name,
     pluginNodeId: node.id,
-    restNodeId: node.id,
     ...(node.visible !== undefined ? { visible: node.visible } : {})
   };
 }

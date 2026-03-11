@@ -147,6 +147,10 @@ function createVariableModes(
   }));
 }
 
+function hasRecordEntries(value: Record<string, string | undefined> | undefined): boolean {
+  return !!value && Object.values(value).some((entry) => entry !== undefined);
+}
+
 export class RuntimeRegistryCollector {
   readonly registries: DesignRegistries;
 
@@ -215,7 +219,7 @@ export class RuntimeRegistryCollector {
     if (!this.registries.variables[variableRef]) {
       this.registries.variables[variableRef] = {
         collection: mapVariableCollection(collection),
-        ...(variable.codeSyntax ? { codeSyntax: variable.codeSyntax } : {}),
+        ...(hasRecordEntries(variable.codeSyntax) ? { codeSyntax: variable.codeSyntax } : {}),
         id: variable.id,
         ...(variable.key ? { key: variable.key } : {}),
         modes: createVariableModes(variable, collection, this),

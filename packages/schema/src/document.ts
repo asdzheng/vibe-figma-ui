@@ -259,7 +259,7 @@ export type DesignNode = {
   children?: DesignNode[] | undefined;
   content?: ContentInfo | undefined;
   designSystem?: DesignSystemBinding | undefined;
-  figmaType: string;
+  figmaType?: string | undefined;
   kind: z.infer<typeof nodeKindSchema>;
   layout?: LayoutInfo | undefined;
   locked?: boolean | undefined;
@@ -279,7 +279,7 @@ export const designNodeSchema: z.ZodType<DesignNode> = z.lazy(() =>
       children: z.array(designNodeSchema).optional(),
       content: contentSchema.optional(),
       designSystem: designSystemBindingSchema.optional(),
-      figmaType: z.string().min(1),
+      figmaType: z.string().min(1).optional(),
       kind: nodeKindSchema,
       locked: z.boolean().optional(),
       name: z.string().min(1),
@@ -318,12 +318,12 @@ const componentRegistryEntrySchema = z
     library: z
       .object({
         name: z.string().min(1).optional()
-      })
+    })
       .strict()
       .optional(),
     name: z.string().min(1),
     properties: z.record(z.string(), componentPropertySchema).optional(),
-    ref: componentRefSchema,
+    ref: componentRefSchema.optional(),
     remote: z.boolean().optional()
   })
   .strict();
@@ -333,7 +333,7 @@ const componentSetRegistryEntrySchema = z
     key: z.string().min(1).optional(),
     name: z.string().min(1),
     properties: z.record(z.string(), componentPropertySchema).optional(),
-    ref: componentSetRefSchema,
+    ref: componentSetRefSchema.optional(),
     remote: z.boolean().optional()
   })
   .strict();
@@ -346,7 +346,7 @@ const styleRegistryEntrySchema = z
     fallback: z.unknown().optional(),
     key: z.string().min(1).optional(),
     name: z.string().min(1),
-    ref: styleRefSchema,
+    ref: styleRefSchema.optional(),
     remote: z.boolean().optional(),
     styleType: z.enum(["PAINT", "TEXT", "EFFECT", "GRID"])
   })
@@ -355,7 +355,7 @@ const styleRegistryEntrySchema = z
 const variableModeSchema = z
   .object({
     modeId: z.string().min(1),
-    name: z.string().min(1),
+    name: z.string().min(1).optional(),
     value: z.unknown().optional()
   })
   .strict();
@@ -374,14 +374,14 @@ const variableRegistryEntrySchema = z
       .object({
         id: z.string().min(1),
         key: z.string().min(1).optional(),
-        name: z.string().min(1)
+        name: z.string().min(1).optional()
       })
       .strict(),
     id: z.string().min(1).optional(),
     key: z.string().min(1).optional(),
     modes: z.array(variableModeSchema),
     name: z.string().min(1),
-    ref: variableRefSchema,
+    ref: variableRefSchema.optional(),
     remote: z.boolean().optional(),
     resolvedType: z.enum(["BOOLEAN", "COLOR", "FLOAT", "STRING"])
   })
@@ -398,7 +398,7 @@ const iconRegistryEntrySchema = z
       .strict()
       .optional(),
     name: z.string().min(1),
-    ref: iconRefSchema
+    ref: iconRefSchema.optional()
   })
   .strict();
 
@@ -406,7 +406,7 @@ const assetRegistryEntrySchema = z
   .object({
     hash: z.string().min(1).optional(),
     kind: z.enum(["svg", "png", "jpg", "pdf"]),
-    ref: assetRefSchema,
+    ref: assetRefSchema.optional(),
     sourceComponentRef: componentRefSchema.optional(),
     sourcePluginNodeId: z.string().min(1).optional()
   })
@@ -415,8 +415,8 @@ const assetRegistryEntrySchema = z
 const selectionEntrySchema = z
   .object({
     id: z.string().min(1),
-    name: z.string().min(1),
-    type: z.string().min(1)
+    name: z.string().min(1).optional(),
+    type: z.string().min(1).optional()
   })
   .strict();
 
@@ -424,6 +424,7 @@ const captureSchema = z
   .object({
     editorType: z.string().min(1),
     mode: z.string().min(1).optional(),
+    modeContext: z.record(z.string(), z.string()).optional(),
     options: z
       .object({
         captureScope: z.enum(["selection", "page"]),
@@ -512,12 +513,12 @@ function addRefIssue(
 }
 
 function ensureRegistryKeyMatchesRef(
-  entries: Record<string, { ref: string }>,
+  entries: Record<string, { ref?: string | undefined }>,
   path: string,
   ctx: z.RefinementCtx
 ) {
   for (const [key, value] of Object.entries(entries)) {
-    if (key !== value.ref) {
+    if (value.ref && key !== value.ref) {
       addRefIssue(ctx, ["registries", path, key], `Registry key "${key}" must match ref "${value.ref}".`);
     }
   }

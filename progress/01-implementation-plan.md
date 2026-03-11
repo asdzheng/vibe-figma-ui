@@ -45,3 +45,12 @@ Status legend:
 - `[done]` Implement a thin local SVG snapshot path behind `vibe-figma screenshot`.
 - `[doing]` Re-run the full automated suite in an environment that permits localhost listeners.
 - `[doing]` Run live Figma manual verification against the updated plugin, companion flow, and snapshot path.
+
+## Phase 7: V3 JSON Minimization
+
+- `[done]` Remove canonical payload defaults and redundant fields that do not materially change code generation output.
+- `[doing]` Convert preserved-instance payloads from full property surfaces to sparse override diffs.
+- `[doing]` Move variable mode context to top-level metadata and replace full variable mode matrices with active-slice registry entries in canonical output.
+- `[doing]` Strip component, component-set, and style registries down to usage-driven semantic entries for canonical output.
+- `[todo]` Add explicit output profiles so `canonical` stays small and `debug` carries the heavier inspection payload.
+- `[todo]` Add size-budget tests for representative live exports and fail on canonical JSON growth beyond the agreed thresholds.
