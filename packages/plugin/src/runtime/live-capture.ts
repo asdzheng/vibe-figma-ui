@@ -410,12 +410,28 @@ async function resolveComponentPropertyDefinitions(
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+function safeReadComponentPropertyDefinitions(
+  node:
+    | { componentPropertyDefinitions?: ComponentPropertyDefinitionsInput }
+    | undefined
+): ComponentPropertyDefinitionsInput | undefined {
+  if (!node) {
+    return undefined;
+  }
+
+  try {
+    return node.componentPropertyDefinitions;
+  } catch {
+    return undefined;
+  }
+}
+
 async function serializeComponentSetNode(
   componentSet: ComponentSetNodeInput,
   context: RuntimeCaptureLookupContext
 ): Promise<RuntimeComponentSetNode> {
   const componentPropertyDefinitions = await resolveComponentPropertyDefinitions(
-    componentSet.componentPropertyDefinitions,
+    safeReadComponentPropertyDefinitions(componentSet),
     context
   );
 
@@ -433,7 +449,7 @@ async function serializeComponentNode(
   context: RuntimeCaptureLookupContext
 ): Promise<RuntimeComponentNode> {
   const componentPropertyDefinitions = await resolveComponentPropertyDefinitions(
-    component.componentPropertyDefinitions,
+    safeReadComponentPropertyDefinitions(component),
     context
   );
   const parent = isComponentSetParent(component.parent)
