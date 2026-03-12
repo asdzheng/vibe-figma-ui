@@ -224,6 +224,7 @@ describe("buildSelectionCaptureFromRuntime", () => {
         name: "Checkout"
       },
       pluginApi,
+      profile: "debug",
       pluginVersion: "0.7.0",
       selection,
       timestamp: "2026-03-09T08:00:00.000Z"
@@ -234,11 +235,19 @@ describe("buildSelectionCaptureFromRuntime", () => {
       styleType: "TEXT"
     });
     expect(document.registries.variables["variable:color-action-primary"]).toMatchObject({
+      modes: [
+        {
+          modeId: "light"
+        }
+      ],
       name: "color/action/primary"
     });
     expect(document.registries.components["component:button-primary"]).toMatchObject({
       componentSetRef: "component-set:button",
       name: "Button / Primary"
+    });
+    expect(document.capture.modeContext).toEqual({
+      [colorCollection.id]: "light"
     });
     expect(document.roots[0]).toMatchObject({
       layout: {
@@ -252,6 +261,8 @@ describe("buildSelectionCaptureFromRuntime", () => {
         }
       }
     });
+    expect(document.roots[0]?.figmaType).toBeUndefined();
+    expect(document.roots[0]?.restNodeId).toBeUndefined();
     expect(document.roots[0]?.children?.[0]).toMatchObject({
       content: {
         text: {
@@ -275,12 +286,10 @@ describe("buildSelectionCaptureFromRuntime", () => {
           variant: {
             Size: "L"
           }
-        },
-        resolvedVariableModes: {
-          [colorCollection.id]: "light"
         }
       }
     });
+    expect(document.roots[0]?.children?.[1]?.designSystem?.resolvedVariableModes).toBeUndefined();
   });
 
   test("hydrates async-only Figma lookups before building the capture", async () => {
@@ -441,6 +450,7 @@ describe("buildSelectionCaptureFromRuntime", () => {
         name: "Checkout"
       },
       pluginApi,
+      profile: "debug",
       pluginVersion: "0.8.0",
       selection
     });
@@ -454,6 +464,11 @@ describe("buildSelectionCaptureFromRuntime", () => {
     expect(document.registries.components["component:button-primary"]).toMatchObject({
       componentSetRef: "component-set:button",
       name: "Button / Primary"
+    });
+    expect(document.roots[0]?.children?.[1]?.designSystem?.instance).toEqual({
+      variant: {
+        Size: "L"
+      }
     });
   });
 });

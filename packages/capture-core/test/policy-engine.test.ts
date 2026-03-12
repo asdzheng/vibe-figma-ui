@@ -96,6 +96,7 @@ describe("createDesignDocument", () => {
     const document = createDesignDocument({
       capture,
       componentPolicyRules: rules,
+      profile: "debug",
       registries,
       roots
     });
@@ -117,6 +118,7 @@ describe("createDesignDocument", () => {
 
     const document = createDesignDocument({
       capture,
+      profile: "debug",
       roots: [
         {
           designSystem: {
@@ -209,6 +211,7 @@ describe("createDesignDocument", () => {
           restNodeId: "9:10"
         }
       ],
+      profile: "debug",
       registries
     });
 

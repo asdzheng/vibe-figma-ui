@@ -19,13 +19,14 @@ Architecture and runtime direction:
 
 Canonical JSON and component behavior:
 
-- [docs/rfcs/design-json-schema-v0.1.md](docs/rfcs/design-json-schema-v0.1.md)
+- [docs/rfcs/design-json-schema-v0.2.md](docs/rfcs/design-json-schema-v0.2.md)
 - [docs/rfcs/component-preservation-policy.md](docs/rfcs/component-preservation-policy.md)
 
 ## What V2 Does
 
 - captures the current Figma selection into canonical JSON
-- preserves component, style, and variable metadata for downstream tooling
+- emits a default schema `0.2` canonical document that is page-semantic, sparse, and registry-free
+- preserves the component usage and styling signals needed for page-level code generation
 - gives agents a narrow local command surface: `status`, `capture`, `export-json`, `screenshot`, `logs`, `doctor`
 - keeps the runtime shape simple: plugin in Figma, CLI on the host
 
@@ -125,7 +126,9 @@ corepack pnpm cli -- screenshot --output artifacts/manual/live-screenshot.svg
 corepack pnpm cli -- logs --limit 100
 ```
 
-`export-json` always prints the canonical JSON document to stdout. `--output` also writes the same JSON to disk.
+`export-json` always prints the default schema `0.2` canonical JSON document to stdout. `--output` also writes the same JSON to disk.
+
+The default canonical output no longer includes top-level registries. It inlines readable component names, variant usage, literal visual values, and authored layout intent directly on nodes.
 
 `screenshot` now renders a local SVG verification artifact from canonical JSON. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
 

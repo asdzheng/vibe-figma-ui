@@ -2,6 +2,7 @@ export {
   createDesignDocument,
   type BuildDesignDocumentInput
 } from "./document-builder.js";
+export { convertDesignDocumentToV0_2 } from "./canonical-v0-2.js";
 export {
   deriveComponentPolicyContext,
   matchesComponentPolicyRule,

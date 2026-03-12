@@ -4,6 +4,10 @@
     "timestamp": "2026-03-09T09:50:00.000Z",
     "pluginVersion": "0.7.0",
     "editorType": "figma",
+    "modeContext": {
+      "VariableCollectionId:theme": "mode-dark",
+      "VariableCollectionId:density": "mode-compact"
+    },
     "page": {
       "id": "20:1",
       "name": "Variables"
@@ -23,8 +27,6 @@
   "roots": [
     {
       "pluginNodeId": "20:10",
-      "restNodeId": "20:10",
-      "figmaType": "FRAME",
       "kind": "frame",
       "name": "Variable Modes Example",
       "bounds": {
@@ -32,7 +34,6 @@
         "height": 180
       },
       "layout": {
-        "position": "flow",
         "mode": "column",
         "gap": 16,
         "padding": {
@@ -51,17 +52,9 @@
           }
         ]
       },
-      "designSystem": {
-        "resolvedVariableModes": {
-          "VariableCollectionId:theme": "mode-dark",
-          "VariableCollectionId:density": "mode-compact"
-        }
-      },
       "children": [
         {
           "pluginNodeId": "20:11",
-          "restNodeId": "20:11",
-          "figmaType": "TEXT",
           "kind": "text",
           "name": "Body",
           "bounds": {
@@ -79,11 +72,6 @@
                   "tokenRef": "variable:text-primary"
                 }
               ]
-            }
-          },
-          "designSystem": {
-            "resolvedVariableModes": {
-              "VariableCollectionId:theme": "mode-dark"
             }
           }
         }
@@ -130,11 +118,6 @@
         },
         "modes": [
           {
-            "modeId": "mode-light",
-            "name": "Light",
-            "value": "#FFFFFF"
-          },
-          {
             "modeId": "mode-dark",
             "name": "Dark",
             "value": "#0B1220"
@@ -157,11 +140,6 @@
         },
         "modes": [
           {
-            "modeId": "mode-light",
-            "name": "Light",
-            "value": "#111827"
-          },
-          {
             "modeId": "mode-dark",
             "name": "Dark",
             "value": "#F8FAFC"
@@ -183,11 +161,6 @@
           "name": "Density"
         },
         "modes": [
-          {
-            "modeId": "mode-comfortable",
-            "name": "Comfortable",
-            "value": 24
-          },
           {
             "modeId": "mode-compact",
             "name": "Compact",

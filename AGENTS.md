@@ -8,7 +8,7 @@ Product behavior, capture schema, and component-policy details live in the RFCs 
 
 Source-of-truth RFCs:
 
-- [docs/rfcs/design-json-schema-v0.1.md](docs/rfcs/design-json-schema-v0.1.md)
+- [docs/rfcs/design-json-schema-v0.2.md](docs/rfcs/design-json-schema-v0.2.md)
 - [docs/rfcs/component-preservation-policy.md](docs/rfcs/component-preservation-policy.md)
 
 If implementation and RFC conflict, follow the RFC and update code accordingly unless the user explicitly changes the design.

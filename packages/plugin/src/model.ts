@@ -138,6 +138,7 @@ export type BuildSelectionCaptureInput = {
     name: string;
   };
   pluginVersion: string;
+  profile?: "canonical" | "debug" | undefined;
   registries?: Partial<DesignRegistries> | undefined;
   selection: readonly FigmaNodeLike[];
   sourceFileKey?: string | undefined;

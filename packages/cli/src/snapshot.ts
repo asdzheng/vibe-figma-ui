@@ -1,11 +1,17 @@
 import type {
+  AnyDesignNode,
+  CanonicalTokenOrValue,
+  ComponentUse,
   ComponentPropertyValue,
   DesignDocument,
-  DesignNode,
+  DesignNodeV0_2,
   PaintValue,
   RadiusValue,
   StyleRegistryEntry
 } from "@vibe-figma/schema";
+import { isDesignDocumentV0_1 } from "@vibe-figma/schema";
+
+type DesignNode = AnyDesignNode;
 
 const SNAPSHOT_MARGIN = 24;
 const SNAPSHOT_GAP = 24;
@@ -42,10 +48,17 @@ type NodeSize = {
   width: number;
 };
 
+type NodePosition = {
+  x: number;
+  y: number;
+};
+
 type InstanceMetadata = {
   componentName: string;
   componentSetName: string | null;
 };
+
+type SnapshotComponentProperties = Record<string, string | boolean>;
 
 type LabelTextOptions = {
   color?: string;
@@ -53,6 +66,10 @@ type LabelTextOptions = {
   fontWeight?: number;
   letterSpacing?: number;
 };
+
+function isV02Node(node: DesignNode): node is DesignNodeV0_2 {
+  return !("pluginNodeId" in node);
+}
 
 function escapeXml(value: string): string {
   return value
@@ -72,8 +89,10 @@ function sanitizeVariantLabel(value: string): string {
 }
 
 function getNodeSize(node: DesignNode): NodeSize {
-  const width = node.bounds?.width ?? 320;
-  const height = node.bounds?.height ?? 120;
+  const width = isV02Node(node) ? node.size?.width ?? 320 : node.bounds?.width ?? 320;
+  const height = isV02Node(node)
+    ? node.size?.height ?? 120
+    : node.bounds?.height ?? 120;
 
   return {
     height: Math.max(height, 1),
@@ -82,13 +101,164 @@ function getNodeSize(node: DesignNode): NodeSize {
 }
 
 function getNodePosition(node: DesignNode): { x: number; y: number } {
+  if (isV02Node(node)) {
+    return {
+      x: node.layout?.absolute?.x ?? 0,
+      y: node.layout?.absolute?.y ?? 0
+    };
+  }
+
   return {
     x: node.bounds?.x ?? 0,
     y: node.bounds?.y ?? 0
   };
 }
 
-function getRadiusValue(radius: RadiusValue | undefined): number {
+function getPadding(
+  node: DesignNode
+): { bottom: number; left: number; right: number; top: number } {
+  if (isV02Node(node)) {
+    const pad = node.layout?.pad;
+
+    if (typeof pad === "number") {
+      return {
+        bottom: pad,
+        left: pad,
+        right: pad,
+        top: pad
+      };
+    }
+
+    if (Array.isArray(pad) && pad.length === 2) {
+      return {
+        bottom: pad[0],
+        left: pad[1],
+        right: pad[1],
+        top: pad[0]
+      };
+    }
+
+    if (Array.isArray(pad) && pad.length === 4) {
+      return {
+        bottom: pad[2],
+        left: pad[3],
+        right: pad[1],
+        top: pad[0]
+      };
+    }
+  }
+
+  return {
+    bottom: isV02Node(node) ? 0 : node.layout?.padding?.bottom ?? 0,
+    left: isV02Node(node) ? 0 : node.layout?.padding?.left ?? 0,
+    right: isV02Node(node) ? 0 : node.layout?.padding?.right ?? 0,
+    top: isV02Node(node) ? 0 : node.layout?.padding?.top ?? 0
+  };
+}
+
+function hasExplicitPosition(node: DesignNode): boolean {
+  return isV02Node(node)
+    ? node.layout?.absolute !== undefined
+    : node.bounds?.x !== undefined || node.bounds?.y !== undefined;
+}
+
+function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePosition> {
+  const layoutMode = isV02Node(parent) ? parent.layout?.flow : parent.layout?.mode;
+
+  if (layoutMode !== "row" && layoutMode !== "column") {
+    return new Map<DesignNode, NodePosition>();
+  }
+
+  const positions = new Map<DesignNode, NodePosition>();
+  const flowChildren = (parent.children ?? []).filter(
+    (child) =>
+      (isV02Node(child) ? child.layout?.absolute === undefined : child.layout?.position !== "absolute") &&
+      !hasExplicitPosition(child)
+  );
+
+  if (flowChildren.length === 0) {
+    return positions;
+  }
+
+  const parentSize = getNodeSize(parent);
+  const padding = getPadding(parent);
+  const justifyContent = isV02Node(parent)
+    ? parent.layout?.align?.justify ?? "start"
+    : parent.layout?.align?.justifyContent ?? "start";
+  const alignItems = isV02Node(parent)
+    ? parent.layout?.align?.items ?? "start"
+    : parent.layout?.align?.alignItems ?? "start";
+  const isRow = layoutMode === "row";
+  const gap = parent.layout?.gap ?? 0;
+  const totalMainSize = flowChildren.reduce((sum, child) => {
+    const size = getNodeSize(child);
+
+    return sum + (isRow ? size.width : size.height);
+  }, 0);
+  const availableMainSize = Math.max(
+    (isRow
+      ? parentSize.width - padding.left - padding.right
+      : parentSize.height - padding.top - padding.bottom),
+    0
+  );
+  const baseGapTotal = Math.max(flowChildren.length - 1, 0) * gap;
+  const contentMainSize = totalMainSize + baseGapTotal;
+  const dynamicGap =
+    justifyContent === "space-between" && flowChildren.length > 1
+      ? Math.max((availableMainSize - totalMainSize) / (flowChildren.length - 1), 0)
+      : gap;
+  const startMainOffset =
+    justifyContent === "end"
+      ? Math.max(availableMainSize - contentMainSize, 0)
+      : justifyContent === "center"
+        ? Math.max((availableMainSize - contentMainSize) / 2, 0)
+        : 0;
+
+  let cursor = (isRow ? padding.left : padding.top) + startMainOffset;
+
+  for (const child of flowChildren) {
+    const size = getNodeSize(child);
+    const availableCrossSize = Math.max(
+      (isRow
+        ? parentSize.height - padding.top - padding.bottom
+        : parentSize.width - padding.left - padding.right),
+      0
+    );
+    const crossSize = isRow ? size.height : size.width;
+    const crossOffset =
+      alignItems === "end"
+        ? Math.max(availableCrossSize - crossSize, 0)
+        : alignItems === "center"
+          ? Math.max((availableCrossSize - crossSize) / 2, 0)
+          : 0;
+
+    positions.set(child, {
+      x: isRow ? cursor : padding.left + crossOffset,
+      y: isRow ? padding.top + crossOffset : cursor
+    });
+    cursor += (isRow ? size.width : size.height) + dynamicGap;
+  }
+
+  return positions;
+}
+
+function getRadiusValue(node: DesignNode): number {
+  if (isV02Node(node)) {
+    const radius = node.style?.radius;
+
+    if (radius === undefined) {
+      return 0;
+    }
+
+    if (typeof radius === "number") {
+      return radius;
+    }
+
+    return Math.max(...radius);
+  }
+
+  const radius = node.appearance?.radius as RadiusValue | undefined;
+
   if (!radius) {
     return 0;
   }
@@ -153,7 +323,25 @@ function normalizeStyleColor(style: StyleRegistryEntry | undefined): string | un
   });
 }
 
+function getCanonicalColor(
+  value: CanonicalTokenOrValue | undefined
+): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if ("value" in value && value.value.startsWith("#")) {
+    return value.value;
+  }
+
+  return undefined;
+}
+
 function getPaintColor(document: DesignDocument, paint: PaintValue | undefined): string | undefined {
+  if (!isDesignDocumentV0_1(document)) {
+    return undefined;
+  }
+
   if (!paint) {
     return undefined;
   }
@@ -171,10 +359,23 @@ function getPaintColor(document: DesignDocument, paint: PaintValue | undefined):
 
 function getPrimaryPaintColor(
   document: DesignDocument,
-  paints: readonly PaintValue[] | undefined,
+  paints:
+    | readonly PaintValue[]
+    | CanonicalTokenOrValue
+    | CanonicalTokenOrValue[]
+    | undefined,
   fallbackColor: string
 ): string {
-  const color = paints?.map((paint) => getPaintColor(document, paint)).find(Boolean);
+  if (!isDesignDocumentV0_1(document)) {
+    const values = Array.isArray(paints) ? paints : paints ? [paints] : [];
+    const color = values.map((value) => getCanonicalColor(value as CanonicalTokenOrValue)).find(Boolean);
+
+    return color ?? fallbackColor;
+  }
+
+  const color = (paints as readonly PaintValue[])
+    ?.map((paint) => getPaintColor(document, paint))
+    .find(Boolean);
 
   return color ?? fallbackColor;
 }
@@ -183,7 +384,20 @@ function getStrokeAppearance(
   document: DesignDocument,
   node: DesignNode
 ): { color: string; width: number } | null {
-  const [stroke] = node.appearance?.stroke ?? [];
+  if (isV02Node(node)) {
+    const stroke = node.style?.stroke;
+
+    if (!stroke) {
+      return null;
+    }
+
+    return {
+      color: getPrimaryPaintColor(document, stroke.color, FALLBACK_STROKE),
+      width: stroke.width ?? 1
+    };
+  }
+
+  const stroke = node.appearance?.stroke?.[0];
 
   if (!stroke) {
     return null;
@@ -196,6 +410,14 @@ function getStrokeAppearance(
 }
 
 function getTextStyleName(document: DesignDocument, node: DesignNode): string {
+  if (isV02Node(node)) {
+    return node.style?.textStyle?.toLowerCase() ?? "";
+  }
+
+  if (!isDesignDocumentV0_1(document)) {
+    return "";
+  }
+
   const textStyleRef = node.content?.text?.textStyleRef;
 
   if (!textStyleRef) {
@@ -329,6 +551,21 @@ function getInstanceMetadata(
   document: DesignDocument,
   node: DesignNode
 ): InstanceMetadata | null {
+  if (isV02Node(node)) {
+    if (!node.component) {
+      return null;
+    }
+
+    return {
+      componentName: node.component.name,
+      componentSetName: node.component.name
+    };
+  }
+
+  if (!isDesignDocumentV0_1(document)) {
+    return null;
+  }
+
   const componentRef = node.designSystem?.componentRef;
 
   if (!componentRef) {
@@ -346,14 +583,36 @@ function getInstanceMetadata(
   };
 }
 
-function getInstanceProperties(node: DesignNode): Record<string, ComponentPropertyValue> {
+function isSnapshotComponentProperties(
+  properties: SnapshotComponentProperties | Record<string, ComponentPropertyValue>
+): properties is SnapshotComponentProperties {
+  return Object.values(properties).every(
+    (value) => typeof value === "string" || typeof value === "boolean"
+  );
+}
+
+function getInstanceProperties(
+  node: DesignNode
+): SnapshotComponentProperties | Record<string, ComponentPropertyValue> {
+  if (isV02Node(node)) {
+    return node.component?.props ?? {};
+  }
+
   return node.designSystem?.instance?.properties ?? {};
 }
 
 function findPropertyValue(
-  properties: Record<string, ComponentPropertyValue>,
+  properties: SnapshotComponentProperties | Record<string, ComponentPropertyValue>,
   propertyName: string
 ): string | boolean | null {
+  if (isSnapshotComponentProperties(properties)) {
+    const matchedEntry = Object.entries(properties).find(
+      ([key]) => sanitizeVariantLabel(key) === propertyName
+    );
+
+    return matchedEntry?.[1] ?? null;
+  }
+
   const matchedEntry = Object.entries(properties).find(([key]) =>
     sanitizeVariantLabel(key) === propertyName
   );
@@ -362,7 +621,7 @@ function findPropertyValue(
 }
 
 function findTextProperty(
-  properties: Record<string, ComponentPropertyValue>,
+  properties: SnapshotComponentProperties | Record<string, ComponentPropertyValue>,
   propertyNames: readonly string[]
 ): string | null {
   for (const propertyName of propertyNames) {
@@ -377,8 +636,16 @@ function findTextProperty(
 }
 
 function findFirstTextProperty(
-  properties: Record<string, ComponentPropertyValue>
+  properties: SnapshotComponentProperties | Record<string, ComponentPropertyValue>
 ): string | null {
+  if (isSnapshotComponentProperties(properties)) {
+    const matchedEntry = Object.values(properties).find(
+      (propertyValue) => typeof propertyValue === "string"
+    );
+
+    return typeof matchedEntry === "string" ? matchedEntry : null;
+  }
+
   const matchedEntry = Object.values(properties).find(
     (propertyValue) => propertyValue.type === "TEXT" && typeof propertyValue.value === "string"
   );
@@ -390,6 +657,10 @@ function findOverrideText(
   node: DesignNode,
   propertyNames: readonly string[]
 ): string | null {
+  if (isV02Node(node)) {
+    return findTextProperty(node.component?.props ?? {}, propertyNames);
+  }
+
   const overrideEntries = Object.entries(node.designSystem?.instance?.overrides ?? {});
 
   for (const propertyName of propertyNames) {
@@ -409,7 +680,9 @@ function findOverrideText(
 }
 
 function getVariantLabels(node: DesignNode): string[] {
-  const variantEntries = Object.entries(node.designSystem?.instance?.variant ?? {});
+  const variantEntries = isV02Node(node)
+    ? Object.entries(node.component?.variant ?? {})
+    : Object.entries(node.designSystem?.instance?.variant ?? {});
 
   return variantEntries
     .slice(0, 4)
@@ -423,9 +696,12 @@ function renderBackground(
   height: number,
   fallbackFill: string | null
 ): string {
-  const fill =
-    getPrimaryPaintColor(document, node.appearance?.background, fallbackFill ?? "transparent");
-  const radius = getRadiusValue(node.appearance?.radius);
+  const fill = getPrimaryPaintColor(
+    document,
+    isV02Node(node) ? node.style?.fill : node.appearance?.background,
+    fallbackFill ?? "transparent"
+  );
+  const radius = getRadiusValue(node);
   const strokeAppearance = getStrokeAppearance(document, node);
   const inset = strokeAppearance?.width ? strokeAppearance.width / 2 : 0;
   const rectWidth = Math.max(width - inset * 2, 1);
@@ -447,13 +723,21 @@ function renderBackground(
 function renderTextNode(node: DesignNode, context: RenderContext): string {
   context.stats.textNodeCount += 1;
   const { width } = getNodeSize(node);
-  const textContent = node.content?.text;
-  const textValue = textContent?.characters ?? node.name;
-  const textColor = getPrimaryPaintColor(
-    context.document,
-    textContent?.fill ?? node.appearance?.background,
-    FALLBACK_TEXT
-  );
+
+  const textValue = isV02Node(node)
+    ? node.text?.value ?? node.name ?? ""
+    : node.content?.text?.characters ?? node.name;
+  const textColor = isV02Node(node)
+    ? getPrimaryPaintColor(
+        context.document,
+        node.style?.textColor ?? node.style?.fill,
+        FALLBACK_TEXT
+      )
+    : getPrimaryPaintColor(
+        context.document,
+        node.content?.text?.fill ?? node.appearance?.background,
+        FALLBACK_TEXT
+      );
   const metrics = resolveTextMetrics(context.document, node);
   const wrappedLines = wrapText(
     textValue,
@@ -496,7 +780,7 @@ function renderAppBar(width: number, height: number, node: DesignNode): string {
   const labelY = height >= 100 ? 58 : 30;
 
   return [
-    renderLabelText(20, labelY, labels[0] ?? node.name, {
+    renderLabelText(20, labelY, labels[0] ?? node.name ?? "App bar", {
       fontSize: height >= 100 ? 28 : 20,
       fontWeight: 500
     }),
@@ -552,7 +836,8 @@ function renderTextButton(width: number, height: number, node: DesignNode): stri
     findOverrideText(node, ["Label text", "Label", "Headline"]) ??
     findTextProperty(properties, ["Label text", "Label", "Headline"]) ??
     findFirstTextProperty(properties) ??
-    node.name;
+    node.name ??
+    "Button";
 
   return [
     `<rect x="0.5" y="0.5" width="${formatNumber(width - 1)}" height="${formatNumber(
@@ -678,7 +963,7 @@ function renderGestureBar(width: number, height: number): string {
 }
 
 function renderFallbackInstance(width: number, height: number, node: DesignNode): string {
-  const label = node.name;
+  const label = node.name ?? "Instance";
   const variantLabels = getVariantLabels(node);
   const chips = variantLabels
     .slice(0, 2)
@@ -708,7 +993,8 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
   const { width, height } = getNodeSize(node);
   const metadata = getInstanceMetadata(context.document, node);
   const setName = metadata?.componentSetName?.toLowerCase() ?? "";
-  const componentName = metadata?.componentName.toLowerCase() ?? node.name.toLowerCase();
+  const fallbackName = node.name ?? "instance";
+  const componentName = metadata?.componentName.toLowerCase() ?? fallbackName.toLowerCase();
 
   let markup = "";
   let materialized = true;
@@ -721,7 +1007,7 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
     markup = renderCarousel(width, height);
   } else if (setName === "icon button - standard") {
     markup = renderIconButton(width, height, node);
-  } else if (node.name.toLowerCase().includes("button")) {
+  } else if (fallbackName.toLowerCase().includes("button")) {
     markup = renderTextButton(width, height, node);
   } else if (componentName.includes("navigation")) {
     markup = renderGestureBar(width, height);
@@ -745,16 +1031,26 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
 }
 
 function renderChildren(node: DesignNode, context: RenderContext): string {
-  return (node.children ?? []).map((child) => renderNode(child, context)).join("");
+  const inferredPositions = getFlowLayoutPositions(node);
+
+  return (node.children ?? [])
+    .map((child) => {
+      const inferredPosition = inferredPositions.get(child);
+
+      return renderNode(child, context, inferredPosition ? { position: inferredPosition } : {});
+    })
+    .join("");
 }
 
 function renderNode(
   node: DesignNode,
   context: RenderContext,
-  options: { ignorePosition?: boolean } = {}
+  options: { ignorePosition?: boolean; position?: NodePosition } = {}
 ): string {
   context.stats.nodeCount += 1;
-  const { x, y } = options.ignorePosition ? { x: 0, y: 0 } : getNodePosition(node);
+  const { x, y } = options.ignorePosition
+    ? { x: 0, y: 0 }
+    : options.position ?? getNodePosition(node);
   const { width, height } = getNodeSize(node);
   let content = "";
 
