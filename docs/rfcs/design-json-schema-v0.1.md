@@ -1,6 +1,8 @@
 # Design JSON Schema v0.1
 
-Status: Draft
+Status: Legacy draft
+
+Superseded for the default canonical path by `docs/rfcs/design-json-schema-v0.2.md`.
 
 ## Purpose
 

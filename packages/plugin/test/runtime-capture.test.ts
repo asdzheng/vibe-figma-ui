@@ -224,6 +224,7 @@ describe("buildSelectionCaptureFromRuntime", () => {
         name: "Checkout"
       },
       pluginApi,
+      profile: "debug",
       pluginVersion: "0.7.0",
       selection,
       timestamp: "2026-03-09T08:00:00.000Z"
@@ -449,6 +450,7 @@ describe("buildSelectionCaptureFromRuntime", () => {
         name: "Checkout"
       },
       pluginApi,
+      profile: "debug",
       pluginVersion: "0.8.0",
       selection
     });

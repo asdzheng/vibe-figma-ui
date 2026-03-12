@@ -4,6 +4,8 @@ import {
   createRegistryRef,
   type ComponentPropertyValue,
   type DesignDocument,
+  type DesignDocumentV0_1,
+  type DesignDocumentV0_2,
   type DesignNode,
   type DesignRegistries,
   type PaintValue
@@ -179,18 +181,16 @@ function buildSparseInstanceBinding(node: FigmaNodeLike): {
       )
       .map(([name, property]) => [name, property.value as string] as const)
   );
-  const fallbackVariant =
-    Object.keys(componentProperties).length === 0
-    ? node.variantProperties
-    : undefined;
+  const mergedVariant = {
+    ...(node.variantProperties ?? {}),
+    ...variant
+  };
 
-  return Object.keys(properties).length > 0 || Object.keys(variant).length > 0
+  return Object.keys(properties).length > 0 || Object.keys(mergedVariant).length > 0
     ? {
         ...(Object.keys(properties).length > 0 ? { properties } : {}),
-        ...(Object.keys(variant).length > 0 ? { variant } : {})
+        ...(Object.keys(mergedVariant).length > 0 ? { variant: mergedVariant } : {})
       }
-    : fallbackVariant && Object.keys(fallbackVariant).length > 0
-      ? { variant: fallbackVariant }
     : undefined;
 }
 
@@ -594,29 +594,50 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
 }
 
 export function buildSelectionCapture(
+  input: BuildSelectionCaptureInput & {
+    profile: "debug";
+  }
+): DesignDocumentV0_1;
+export function buildSelectionCapture(
+  input: BuildSelectionCaptureInput & {
+    profile?: "canonical" | undefined;
+  }
+): DesignDocumentV0_2;
+export function buildSelectionCapture(
   input: BuildSelectionCaptureInput
 ): DesignDocument {
   const roots = input.selection.map((node) => adaptFigmaNode(node));
   const extractedRegistries = buildRegistries(input.selection);
+  const capture = {
+    editorType: "figma" as const,
+    options: {
+      captureScope: "selection" as const,
+      expandInstances: false
+    },
+    page: input.page,
+    pluginVersion: input.pluginVersion,
+    selection: input.selection.map((node) => ({
+      id: node.id,
+      name: node.name,
+      type: node.type
+    })),
+    ...(input.sourceFileKey ? { sourceFileKey: input.sourceFileKey } : {}),
+    timestamp: input.timestamp ?? new Date().toISOString()
+  };
+  const registries = mergeRegistries(extractedRegistries, input.registries);
+
+  if (input.profile === "debug") {
+    return createDesignDocument({
+      capture,
+      profile: "debug",
+      registries,
+      roots
+    });
+  }
 
   return createDesignDocument({
-    capture: {
-      editorType: "figma",
-      options: {
-        captureScope: "selection",
-        expandInstances: false
-      },
-      page: input.page,
-      pluginVersion: input.pluginVersion,
-      selection: input.selection.map((node) => ({
-        id: node.id,
-        name: node.name,
-        type: node.type
-      })),
-      ...(input.sourceFileKey ? { sourceFileKey: input.sourceFileKey } : {}),
-      timestamp: input.timestamp ?? new Date().toISOString()
-    },
-    registries: mergeRegistries(extractedRegistries, input.registries),
+    capture,
+    registries,
     roots
   });
 }

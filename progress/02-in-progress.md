@@ -2,12 +2,13 @@
 
 ## Active Track
 
-The current track is V3 canonical JSON minimization on top of the CLI-first V2 runtime migration.
+The current track is schema v0.2 redesign on top of the CLI-first V2 runtime migration.
 
 ## Current Focus
 
-- Reduce the default canonical JSON until it is meaningfully small for AI code generation.
-- Separate default semantic payload from debug or audit payloads.
+- Replace the registry-backed canonical contract with a minimal page-semantics contract.
+- Reduce the default canonical JSON until it describes the page, not the authoring system behind the page.
+- Separate default semantic payload from debug or component-export payloads.
 - Keep the active architecture boundaries clean:
   - `plugin` is the Figma-side runtime endpoint
   - `cli` is the host-side control surface and local companion
@@ -15,13 +16,13 @@ The current track is V3 canonical JSON minimization on top of the CLI-first V2 r
 
 ## Next Concrete Tasks
 
-1. Implement the low-risk canonical cuts from `docs/rfcs/design-json-v3-optimization.md`: redundant ids, raw types, default booleans, flow-layout coordinates, and float rounding.
-2. Replace full instance property payloads with sparse override diffs and remove duplicate leaf-component-plus-variant serialization.
-3. Replace full variable mode matrices in canonical output with top-level mode context plus active-slice token values.
-4. Add size-budget verification for `artifacts/e2e/current-export.json` and new slim-canonical fixtures.
+1. Expose an explicit user-facing `debug` profile so the legacy `0.1` payload is available on purpose instead of only through internal calls.
+2. Remove more repeated leaf-node and label noise from v0.2 so simple structured pages do not expand into long pretty-printed trees.
+3. Move more of the v0.2 emitter from conversion logic toward schema-native semantic emission where the current converter still mirrors too much normalized structure.
+4. Re-capture `Examples/Upcoming-Mobile` and push the current `1,562`-line baseline downward.
 
 ## Exit Criteria
 
-- The representative canonical export is within the agreed V3 size budget.
+- The representative canonical export is materially smaller than the current `1,562`-line and `45,062`-byte v0.2 baseline and trends toward the stricter RFC target.
 - `lint`, `typecheck`, `test`, and `build` are green on the active packages.
-- Manual Figma verification still confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output after the schema cuts.
+- Manual Figma verification still confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output after the schema rewrite.

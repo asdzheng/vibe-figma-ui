@@ -1,6 +1,8 @@
 # Design JSON V3 Optimization Plan
 
-Status: Proposed
+Status: Historical analysis
+
+The size measurements and goals in this document remain useful, but the chosen solution direction is now the schema-first redesign in `docs/rfcs/design-json-schema-v0.2.md`.
 
 ## Objective
 

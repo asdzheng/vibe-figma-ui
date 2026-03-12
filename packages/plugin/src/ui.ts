@@ -386,30 +386,47 @@ export function renderPluginUiHtml(options: {
       };
       const summarizeCapture = (document) => {
         const capture = document && typeof document === "object" ? document.capture : null;
-        const diagnostics =
-          document && typeof document === "object" ? document.diagnostics : null;
         const roots =
           document && typeof document === "object" && Array.isArray(document.roots)
             ? document.roots
             : [];
         const warnings =
-          diagnostics && typeof diagnostics === "object" && Array.isArray(diagnostics.warnings)
-            ? diagnostics.warnings
-            : [];
-        const selection =
+          document &&
+          typeof document === "object" &&
+          Array.isArray(document.warnings)
+            ? document.warnings
+            : capture &&
+                typeof capture === "object" &&
+                "diagnostics" in document &&
+                document.diagnostics &&
+                typeof document.diagnostics === "object" &&
+                Array.isArray(document.diagnostics.warnings)
+              ? document.diagnostics.warnings
+              : [];
+        const selectionCount =
           capture && typeof capture === "object" && Array.isArray(capture.selection)
-            ? capture.selection
-            : [];
-        const page =
-          capture && typeof capture === "object" && capture.page && typeof capture.page === "object"
+            ? capture.selection.length
+            : capture &&
+                typeof capture === "object" &&
+                Array.isArray(capture.roots)
+              ? capture.roots.length
+              : roots.length;
+        const pageName =
+          capture && typeof capture === "object" && typeof capture.page === "string"
             ? capture.page
-            : null;
+            : capture &&
+                typeof capture === "object" &&
+                capture.page &&
+                typeof capture.page === "object" &&
+                typeof capture.page.name === "string"
+              ? capture.page.name
+              : null;
 
-        if (page && typeof page.name === "string" && page.name.length > 0) {
-          state.pageName = page.name;
+        if (pageName && pageName.length > 0) {
+          state.pageName = pageName;
         }
 
-        state.selectionCount = selection.length;
+        state.selectionCount = selectionCount;
 
         return (
           String(roots.length) +

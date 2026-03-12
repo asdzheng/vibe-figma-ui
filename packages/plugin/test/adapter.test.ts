@@ -38,10 +38,11 @@ describe("buildSelectionCapture", () => {
       timestamp: "2026-03-09T08:00:00.000Z"
     });
 
-    expect(document.registries.components["component:button-primary"]).toMatchObject({
+    expect(document.schemaVersion).toBe("0.2");
+    expect(document.roots[0]?.component).toMatchObject({
       name: "Button / Primary"
     });
-    expect(document.roots[0]?.designSystem?.instance?.variant).toEqual({
+    expect(document.roots[0]?.component?.variant).toEqual({
       Size: "L",
       Tone: "Primary"
     });

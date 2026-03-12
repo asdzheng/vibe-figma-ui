@@ -5,7 +5,7 @@ import {
   loadCaptureFixtureDocument,
   loadSampleCaptureDocument
 } from "@vibe-figma/fixtures";
-import { designDocumentSchema } from "@vibe-figma/schema";
+import { designDocumentSchema, isDesignDocumentV0_1 } from "@vibe-figma/schema";
 
 describe("designDocumentSchema", () => {
   test.each(captureFixtureNames)(
@@ -38,6 +38,11 @@ describe("designDocumentSchema", () => {
 
   test("rejects missing registry references", async () => {
     const fixture = await loadSampleCaptureDocument();
+
+    if (!isDesignDocumentV0_1(fixture)) {
+      throw new Error("Expected the sample capture fixture to stay on schema v0.1.");
+    }
+
     const invalid = structuredClone(fixture);
 
     delete invalid.registries.components["component:button-primary"];

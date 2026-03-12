@@ -466,7 +466,7 @@ const registriesSchema = z
   })
   .strict();
 
-const baseDesignDocumentSchema = z
+const baseDesignDocumentV01Schema = z
   .object({
     capture: captureSchema,
     diagnostics: z
@@ -708,7 +708,7 @@ function validateNode(
   });
 }
 
-export const designDocumentSchema = baseDesignDocumentSchema.superRefine(
+export const designDocumentV0_1Schema = baseDesignDocumentV01Schema.superRefine(
   (document, ctx) => {
     const refs = createReferenceCollections(document);
 
@@ -778,6 +778,177 @@ export const designDocumentSchema = baseDesignDocumentSchema.superRefine(
   }
 );
 
+const componentValueSchema = z.union([z.string().min(1), z.boolean()]);
+
+const canonicalTokenOrValueSchema = z.union([
+  z
+    .object({
+      token: z.string().min(1)
+    })
+    .strict(),
+  z
+    .object({
+      value: z.string().min(1)
+    })
+    .strict(),
+  z
+    .object({
+      image: z.string().min(1)
+    })
+    .strict()
+]);
+
+const canonicalPaddingSchema = z.union([
+  z.number(),
+  z.tuple([z.number(), z.number()]),
+  z.tuple([z.number(), z.number(), z.number(), z.number()])
+]);
+
+const canonicalRadiusSchema = z.union([
+  z.number(),
+  z.tuple([z.number(), z.number()]),
+  z.tuple([z.number(), z.number(), z.number(), z.number()])
+]);
+
+const canonicalLayoutSchema = z
+  .object({
+    absolute: z
+      .object({
+        x: z.number(),
+        y: z.number()
+      })
+      .strict()
+      .optional(),
+    align: z
+      .object({
+        items: z
+          .enum(["start", "end", "center", "stretch", "baseline"])
+          .optional(),
+        justify: z.enum(["start", "end", "center", "between"]).optional()
+      })
+      .strict()
+      .optional(),
+    flow: z.enum(["row", "column"]).optional(),
+    gap: z.number().optional(),
+    pad: canonicalPaddingSchema.optional(),
+    scroll: z.enum(["x", "y", "both"]).optional(),
+    sizing: z
+      .object({
+        height: z.enum(["fixed", "fill", "hug"]).optional(),
+        width: z.enum(["fixed", "fill", "hug"]).optional()
+      })
+      .strict()
+      .optional()
+  })
+  .strict();
+
+const canonicalSizeSchema = z
+  .object({
+    height: z.number().optional(),
+    width: z.number().optional()
+  })
+  .strict();
+
+const canonicalStyleSchema = z
+  .object({
+    fill: z
+      .union([
+        canonicalTokenOrValueSchema,
+        z.array(canonicalTokenOrValueSchema)
+      ])
+      .optional(),
+    opacity: z.number().optional(),
+    radius: canonicalRadiusSchema.optional(),
+    stroke: z
+      .object({
+        color: canonicalTokenOrValueSchema,
+        width: z.number().optional()
+      })
+      .strict()
+      .optional(),
+    textColor: canonicalTokenOrValueSchema.optional(),
+    textStyle: z.string().min(1).optional()
+  })
+  .strict();
+
+const canonicalTextSchema = z
+  .object({
+    lines: z.number().int().positive().optional(),
+    value: z.string()
+  })
+  .strict();
+
+const canonicalImageSchema = z
+  .object({
+    fit: z.enum(["fill", "fit", "tile", "stretch"]).optional(),
+    source: z.string().min(1).optional()
+  })
+  .strict();
+
+const componentUseSchema = z
+  .object({
+    library: z.string().min(1).optional(),
+    name: z.string().min(1),
+    props: z.record(z.string(), componentValueSchema).optional(),
+    status: z.enum(["mapped", "unmapped"]).optional(),
+    variant: z.record(z.string(), z.union([z.string(), z.boolean()])).optional()
+  })
+  .strict();
+
+export type CanonicalTokenOrValue = z.infer<typeof canonicalTokenOrValueSchema>;
+export type ComponentUse = z.infer<typeof componentUseSchema>;
+
+export type DesignNodeV0_2 = {
+  children?: DesignNodeV0_2[] | undefined;
+  component?: ComponentUse | undefined;
+  id?: string | undefined;
+  image?: z.infer<typeof canonicalImageSchema> | undefined;
+  kind: z.infer<typeof nodeKindSchema>;
+  layout?: z.infer<typeof canonicalLayoutSchema> | undefined;
+  name?: string | undefined;
+  size?: z.infer<typeof canonicalSizeSchema> | undefined;
+  style?: z.infer<typeof canonicalStyleSchema> | undefined;
+  text?: z.infer<typeof canonicalTextSchema> | undefined;
+};
+
+export const designNodeV0_2Schema: z.ZodType<DesignNodeV0_2> = z.lazy(() =>
+  z
+    .object({
+      children: z.array(designNodeV0_2Schema).optional(),
+      component: componentUseSchema.optional(),
+      id: z.string().min(1).optional(),
+      image: canonicalImageSchema.optional(),
+      kind: nodeKindSchema,
+      layout: canonicalLayoutSchema.optional(),
+      name: z.string().min(1).optional(),
+      size: canonicalSizeSchema.optional(),
+      style: canonicalStyleSchema.optional(),
+      text: canonicalTextSchema.optional()
+    })
+    .strict()
+);
+
+export const designDocumentV0_2Schema = z
+  .object({
+    capture: z
+      .object({
+        page: z.string().min(1),
+        roots: z.array(z.string().min(1)),
+        scope: z.enum(["selection", "page"])
+      })
+      .strict(),
+    profile: z.literal("canonical"),
+    roots: z.array(designNodeV0_2Schema),
+    schemaVersion: z.literal("0.2"),
+    warnings: z.array(z.string().min(1)).optional()
+  })
+  .strict();
+
+export const designDocumentSchema = z.discriminatedUnion("schemaVersion", [
+  designDocumentV0_1Schema,
+  designDocumentV0_2Schema
+]);
+
 export type ComponentRegistryEntry = z.infer<
   typeof componentRegistryEntrySchema
 >;
@@ -789,10 +960,25 @@ export type VariableRegistryEntry = z.infer<typeof variableRegistryEntrySchema>;
 export type IconRegistryEntry = z.infer<typeof iconRegistryEntrySchema>;
 export type AssetRegistryEntry = z.infer<typeof assetRegistryEntrySchema>;
 export type DesignCapture = z.infer<typeof captureSchema>;
-export type BaseDesignDocument = z.infer<typeof baseDesignDocumentSchema>;
+export type BaseDesignDocument = z.infer<typeof baseDesignDocumentV01Schema>;
+export type DesignDocumentV0_1 = z.infer<typeof designDocumentV0_1Schema>;
+export type DesignDocumentV0_2 = z.infer<typeof designDocumentV0_2Schema>;
 export type DesignDocument = z.infer<typeof designDocumentSchema>;
 
-export type DesignRegistries = DesignDocument["registries"];
+export type AnyDesignNode = DesignNode | DesignNodeV0_2;
+export type DesignRegistries = DesignDocumentV0_1["registries"];
+
+export function isDesignDocumentV0_1(
+  document: DesignDocument
+): document is DesignDocumentV0_1 {
+  return document.schemaVersion === "0.1";
+}
+
+export function isDesignDocumentV0_2(
+  document: DesignDocument
+): document is DesignDocumentV0_2 {
+  return document.schemaVersion === "0.2";
+}
 
 export function createEmptyRegistries(): DesignRegistries {
   return {

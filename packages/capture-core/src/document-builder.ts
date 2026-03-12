@@ -1,15 +1,18 @@
 import {
   createEmptyRegistries,
   createRegistryRef,
-  designDocumentSchema,
+  designDocumentV0_1Schema,
   type ComponentPolicyRule,
   type DesignCapture,
   type DesignDocument,
+  type DesignDocumentV0_1,
+  type DesignDocumentV0_2,
   type DesignNode,
   type DesignRegistries,
   type IconRegistryEntry
 } from "@vibe-figma/schema";
 
+import { convertDesignDocumentToV0_2 } from "./canonical-v0-2.js";
 import {
   deriveComponentPolicyContext,
   resolveComponentPolicy,
@@ -22,7 +25,8 @@ export type BuildDesignDocumentInput = {
   capture: DesignCapture;
   componentContextByRef?: Record<string, Partial<ComponentPolicyContext>>;
   componentPolicyRules?: readonly ComponentPolicyRule[];
-  diagnostics?: DesignDocument["diagnostics"];
+  diagnostics?: DesignDocumentV0_1["diagnostics"];
+  profile?: "canonical" | "debug";
   registries?: PartialRegistries;
   roots: DesignNode[];
 };
@@ -590,9 +594,9 @@ function pruneRegistriesForCanonical(registries: DesignRegistries): DesignRegist
   };
 }
 
-export function createDesignDocument(
+function createDebugDesignDocument(
   input: BuildDesignDocumentInput
-): DesignDocument {
+): DesignDocumentV0_1 {
   const diagnostics = [...(input.diagnostics?.warnings ?? [])]
     .filter((warning): warning is string => typeof warning === "string");
   const state: TransformState = {
@@ -618,7 +622,7 @@ export function createDesignDocument(
     pruneVariableModes(state.registries, usedModeIdsByCollection)
   );
 
-  return designDocumentSchema.parse({
+  return designDocumentV0_1Schema.parse({
     capture: {
       ...input.capture,
       selection: input.capture.selection.map((entry) => ({
@@ -639,4 +643,26 @@ export function createDesignDocument(
     roots: compactedRoots,
     schemaVersion: "0.1"
   });
+}
+
+export function createDesignDocument(
+  input: BuildDesignDocumentInput & {
+    profile: "debug";
+  }
+): DesignDocumentV0_1;
+export function createDesignDocument(
+  input: BuildDesignDocumentInput & {
+    profile?: "canonical" | undefined;
+  }
+): DesignDocumentV0_2;
+export function createDesignDocument(
+  input: BuildDesignDocumentInput
+): DesignDocument {
+  const debugDocument = createDebugDesignDocument(input);
+
+  if (input.profile === "debug") {
+    return debugDocument;
+  }
+
+  return convertDesignDocumentToV0_2(debugDocument);
 }

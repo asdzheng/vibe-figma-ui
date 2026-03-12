@@ -3,7 +3,11 @@ import { dirname, parse, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { designDocumentSchema, type DesignDocument } from "@vibe-figma/schema";
+import {
+  designDocumentSchema,
+  isDesignDocumentV0_1,
+  type DesignDocument
+} from "@vibe-figma/schema";
 
 import { createFetchCompanionClient } from "./client.js";
 import { renderDesignDocumentSnapshot } from "./snapshot.js";
@@ -102,6 +106,16 @@ function summarizeDocument(document: DesignDocument): {
   selectionCount: number;
   warningCount: number;
 } {
+  if (!isDesignDocumentV0_1(document)) {
+    return {
+      pageName: document.capture.page,
+      rootCount: document.roots.length,
+      schemaVersion: document.schemaVersion,
+      selectionCount: document.capture.roots.length,
+      warningCount: document.warnings?.length ?? 0
+    };
+  }
+
   return {
     pageName: document.capture.page.name,
     rootCount: document.roots.length,

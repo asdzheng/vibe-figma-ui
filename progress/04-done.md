@@ -2,6 +2,12 @@
 
 ## 2026-03-11
 
+- Implemented schema `0.2` as the default canonical export shape and kept the old `0.1` registry-backed document as an internal debug-oriented path.
+- Added a converter from the existing normalized `0.1` document into the new registry-free page-semantic `0.2` contract.
+- Updated CLI summary and snapshot rendering so they accept both `0.1` and `0.2` documents.
+- Added a first regression test that caps the representative checked-in live export at `1,600` lines, `46 KB` pretty-printed, and `14 KB` minified under schema `0.2`.
+- Drafted `docs/rfcs/design-json-schema-v0.2.md` to replace the old registry-backed canonical direction with a minimal page-semantics schema.
+- Updated `AGENTS.md`, the V3 optimization notes, and current progress tracking so future implementation work follows schema v0.2 instead of continuing to optimize the old contract in place.
 - Implemented the first V3 canonical JSON compaction pass.
 - Removed redundant default payload from default exports, including duplicate node ids, default flow-layout fields, default `locked` values, and known raw node types.
 - Made preserved instance payloads sparse by keeping only non-default instance property diffs plus relevant variant changes.

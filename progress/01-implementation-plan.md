@@ -46,11 +46,13 @@ Status legend:
 - `[doing]` Re-run the full automated suite in an environment that permits localhost listeners.
 - `[doing]` Run live Figma manual verification against the updated plugin, companion flow, and snapshot path.
 
-## Phase 7: V3 JSON Minimization
+## Phase 7: Schema v0.2 Minimal Canonical
 
-- `[done]` Remove canonical payload defaults and redundant fields that do not materially change code generation output.
-- `[doing]` Convert preserved-instance payloads from full property surfaces to sparse override diffs.
-- `[doing]` Move variable mode context to top-level metadata and replace full variable mode matrices with active-slice registry entries in canonical output.
-- `[doing]` Strip component, component-set, and style registries down to usage-driven semantic entries for canonical output.
-- `[todo]` Add explicit output profiles so `canonical` stays small and `debug` carries the heavier inspection payload.
-- `[todo]` Add size-budget tests for representative live exports and fail on canonical JSON growth beyond the agreed thresholds.
+- `[done]` Draft a new schema-first RFC at `docs/rfcs/design-json-schema-v0.2.md` for the minimal canonical payload.
+- `[done]` Mark the old v0.1 canonical direction as legacy and point the repository source-of-truth toward v0.2.
+- `[done]` Add schema v0.2 alongside v0.1 in `packages/schema`.
+- `[done]` Rewrite default canonical emission so component usage, literal visual values, and layout intent are inlined directly on nodes without top-level registries.
+- `[done]` Remove default fallback blobs, default radius and overflow payload, and repeated resolved geometry from the default canonical output.
+- `[done]` Add a first size-budget regression test for representative live exports.
+- `[doing]` Keep the current v0.1-like payload behind an explicit user-facing `debug` profile during migration.
+- `[doing]` Reduce the representative export further so v0.2 meets the stricter line-count target, not only the minified-size target.

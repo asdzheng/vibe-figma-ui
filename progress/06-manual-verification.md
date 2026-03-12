@@ -50,7 +50,7 @@ Expected result:
 - `capture` prints a summary with page name, selection count, root count, and warning count.
 - `export-json` prints canonical JSON to stdout and writes the same document to disk.
 - The plugin window updates its latest capture summary after the capture command completes.
-- The exported JSON contains expected component, style, and variable registry entries for the live selection.
+- The exported JSON now defaults to schema `0.2`, contains inline component usage and literal visual values, and does not include top-level registries.
 
 ## Scenario 4: Reconnect And Log Inspection
 

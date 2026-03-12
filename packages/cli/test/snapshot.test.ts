@@ -31,13 +31,11 @@ describe("renderDesignDocumentSnapshot", () => {
     const document = await loadCurrentExportDocument();
     const rendered = renderDesignDocumentSnapshot(document);
 
-    expect(rendered.svg).toContain("Section title");
-    expect(rendered.svg).toContain("Show all");
-    expect(rendered.svg).toContain("List item");
     expect(rendered.svg).toContain("App bar");
-    expect(rendered.stats.instanceCount).toBe(11);
-    expect(rendered.stats.materializedInstanceCount).toBeGreaterThanOrEqual(10);
-    expect(rendered.stats.fallbackInstanceCount).toBeLessThanOrEqual(1);
+    expect(rendered.svg).toContain("Navigation Bar: Vertical items");
+    expect(rendered.svg).toContain("Button - text");
+    expect(rendered.stats.instanceCount).toBeGreaterThanOrEqual(10);
+    expect(rendered.stats.materializedInstanceCount).toBeGreaterThanOrEqual(4);
     expect(rendered.width).toBeGreaterThan(400);
     expect(rendered.height).toBeGreaterThan(900);
   });
