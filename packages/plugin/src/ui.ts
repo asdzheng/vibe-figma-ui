@@ -44,290 +44,365 @@ export function renderPluginUiHtml(options: {
     <meta charset="utf-8" />
     <title>Vibe Figma UI</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
       :root {
-        color-scheme: light;
-        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        --color-bg-start: #fdfbf7;
+        --color-bg-end: #f4f0e6;
+        --color-text-main: #1a1d1a;
+        --color-text-muted: #647067;
+        --color-primary: #3b82f6;
+        --color-primary-hover: #2563eb;
+        --color-border: rgba(31, 39, 34, 0.08);
+        --color-card-bg: rgba(255, 255, 255, 0.75);
+        --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.03);
+        --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+        --radius-lg: 16px;
+        --radius-md: 12px;
+        --radius-sm: 8px;
+        --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Inter', sans-serif;
       }
 
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
 
       body {
         margin: 0;
-        background:
-          radial-gradient(circle at top right, rgba(255, 214, 153, 0.35), transparent 36%),
-          linear-gradient(180deg, #f8f5ef 0%, #f1eee7 100%);
-        color: #1f2722;
-      }
-
-      .shell {
+        background: radial-gradient(circle at top right, rgba(255, 214, 153, 0.25), transparent 40%),
+                    linear-gradient(180deg, var(--color-bg-start) 0%, var(--color-bg-end) 100%);
+        color: var(--color-text-main);
         min-height: 100vh;
-        padding: 18px;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
       }
 
-      .stack {
-        display: grid;
-        gap: 12px;
+      .app-container {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 100%;
       }
 
-      .card {
-        border: 1px solid rgba(31, 39, 34, 0.08);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.88);
-        box-shadow: 0 10px 30px rgba(77, 61, 36, 0.08);
-        padding: 14px;
-      }
-
-      .eyebrow {
-        margin: 0 0 6px;
-        color: #6b746c;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-
-      h1,
-      h2,
-      p {
-        margin: 0;
+      /* Header & Status */
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
       }
 
       h1 {
-        font-size: 22px;
-        line-height: 1.1;
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.02em;
       }
 
-      h2 {
-        font-size: 13px;
-      }
-
-      .lede {
-        margin-top: 8px;
-        color: #4c5750;
-        font-size: 13px;
-        line-height: 1.45;
-      }
-
-      .row {
-        display: flex;
+      .status-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 10px;
-        justify-content: space-between;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition: var(--transition);
       }
 
-      .badge {
-        border-radius: 999px;
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .status-badge[data-state="waiting"] {
+        background: #f3eee3; color: #6b5a34;
+      }
+      .status-badge[data-state="waiting"] .status-dot { background: #d4b46c; }
+
+      .status-badge[data-state="connecting"], .status-badge[data-state="reconnecting"] {
+        background: #e9f0ff; color: #2550a6;
+      }
+      .status-badge[data-state="connecting"] .status-dot, .status-badge[data-state="reconnecting"] .status-dot { background: #3b82f6; animation: pulse 1.5s infinite; }
+
+      .status-badge[data-state="connected"] {
+        background: #e7f4e8; color: #1d6b32;
+      }
+      .status-badge[data-state="connected"] .status-dot { background: #22c55e; }
+
+      @keyframes pulse {
+        0% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+
+      /* Cards (Glassmorphism) */
+      .card {
+        background: var(--color-card-bg);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: var(--transition);
+      }
+      .card:hover { box-shadow: var(--shadow-md); }
+
+      .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0 0 12px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Context Grid */
+      .context-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .context-item {
+        background: rgba(255,255,255,0.5);
+        border: 1px solid rgba(0,0,0,0.04);
+        padding: 10px 12px;
+        border-radius: var(--radius-sm);
+      }
+      .context-item-label {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        margin-bottom: 4px;
+      }
+      .context-item-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Design Systems List */
+      .ds-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 140px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .ds-list::-webkit-scrollbar { width: 4px; }
+      .ds-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+
+      .ds-card {
+        background: #ffffff;
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        transition: var(--transition);
+      }
+      .ds-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+      .ds-card h3 {
+        margin: 0 0 4px 0;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .ds-card p {
+        margin: 0 0 8px 0;
+        font-size: 12px;
+        color: var(--color-text-muted);
+        line-height: 1.4;
+      }
+      .ds-card a {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--color-primary);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .ds-card a:hover { color: var(--color-primary-hover); text-decoration: underline; }
+
+      /* Buttons & Actions */
+      .actions-container {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+      }
+      .btn {
+        flex: 1;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 104px;
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-
-      .badge[data-state="waiting"] {
-        background: #f3eee3;
-        color: #6b5a34;
-      }
-
-      .badge[data-state="connecting"],
-      .badge[data-state="reconnecting"] {
-        background: #e9f0ff;
-        color: #2550a6;
-      }
-
-      .badge[data-state="connected"] {
-        background: #e7f4e8;
-        color: #1d6b32;
-      }
-
-      .facts {
-        display: grid;
-        gap: 10px;
-        margin-top: 12px;
-      }
-
-      .facts-row {
-        display: grid;
-        gap: 3px;
-      }
-
-      dt {
-        color: #6b746c;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-      }
-
-      dd {
-        margin: 0;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: var(--radius-md);
         font-size: 13px;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: var(--transition);
+        font-family: inherit;
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .btn-primary {
+        background: var(--color-primary);
+        color: white;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+      }
+      .btn-primary:not(:disabled):hover {
+        background: var(--color-primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+      }
+      .btn-secondary {
+        background: rgba(0,0,0,0.04);
+        color: var(--color-text-main);
+        flex: 0 1 auto;
+      }
+      .btn-secondary:not(:disabled):hover {
+        background: rgba(0,0,0,0.08);
       }
 
+      /* Errors & Msgs */
       .message {
-        margin-top: 12px;
-        color: #364039;
-        font-size: 13px;
-        line-height: 1.45;
+        font-size: 12px;
+        color: var(--color-text-muted);
+        margin: 0;
+        line-height: 1.4;
       }
-
-      .error {
-        margin-top: 10px;
-        border-radius: 10px;
+      .error-box {
+        margin-top: 8px;
+        border-radius: var(--radius-sm);
         background: #fff1ef;
-        color: #8a2d24;
+        color: #b91c1c;
         font-size: 12px;
-        line-height: 1.45;
-        padding: 10px 12px;
-      }
-
-      .error:empty {
+        padding: 8px 12px;
         display: none;
+        border: 1px solid #fecaca;
       }
-
-      .steps {
-        margin: 10px 0 0;
-        padding-left: 18px;
-        color: #364039;
-        font-size: 13px;
-        line-height: 1.5;
-      }
-
-      .steps li + li {
-        margin-top: 6px;
-      }
-
-      code {
-        background: #f3f0e7;
-        border-radius: 6px;
-        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      .error-box.show { display: block; }
+      .empty-state {
         font-size: 12px;
-        padding: 2px 5px;
+        color: var(--color-text-muted);
+        text-align: center;
+        padding: 12px;
+        font-style: italic;
       }
     </style>
   </head>
   <body>
-    <main class="shell">
-      <div class="stack">
-        <section class="card">
-          <p class="eyebrow">V2 Smoke Loop</p>
-          <h1>vibe-figma-ui</h1>
-          <p class="lede">
-            Keep this plugin window open while the local companion and CLI
-            commands run. The plugin will keep retrying until the companion is
-            reachable.
-          </p>
-        </section>
+    <div class="app-container">
+      
+      <header class="header">
+        <h1>Vibe UI</h1>
+        <div class="status-badge" data-state="waiting" id="connection-badge">
+          <div class="status-dot"></div>
+          <span id="connection-label">Waiting</span>
+        </div>
+      </header>
 
-        <section class="card">
-          <div class="row">
-            <div>
-              <p class="eyebrow">Connection</p>
-              <h2>Local Companion Session</h2>
-            </div>
-            <span class="badge" data-state="waiting" id="connection-badge">Waiting</span>
+      <div class="card">
+        <h2 class="section-title">Current Context</h2>
+        <div class="context-grid">
+          <div class="context-item">
+            <div class="context-item-label">Active Page</div>
+            <div class="context-item-value" id="fact-page">Loading...</div>
           </div>
-
-          <dl class="facts">
-            <div class="facts-row">
-              <dt>Companion URL</dt>
-              <dd id="fact-companion">-</dd>
-            </div>
-            <div class="facts-row">
-              <dt>Session</dt>
-              <dd id="fact-session">Not connected</dd>
-            </div>
-            <div class="facts-row">
-              <dt>Page</dt>
-              <dd id="fact-page">Waiting for runtime status.</dd>
-            </div>
-            <div class="facts-row">
-              <dt>Selection</dt>
-              <dd id="fact-selection">Unknown</dd>
-            </div>
-            <div class="facts-row">
-              <dt>Latest Capture</dt>
-              <dd id="fact-capture">No capture yet.</dd>
-            </div>
-          </dl>
-
-          <p class="message" id="connection-message">
-            Waiting for the local companion to accept connections.
-          </p>
-          <p class="error" id="connection-error"></p>
-        </section>
-
-        <section class="card">
-          <p class="eyebrow">What To Do</p>
-          <h2>Manual Figma Steps</h2>
-          <ol class="steps">
-            <li>Run <code>corepack pnpm dev:cli</code> in a terminal.</li>
-            <li>Leave this plugin window open in Figma desktop.</li>
-            <li>Use <code>corepack pnpm cli -- status</code> and <code>corepack pnpm cli -- capture</code>.</li>
-            <li>Use <code>corepack pnpm cli -- export-json --output artifacts/manual/capture.json</code> for the canonical export.</li>
-            <li>Run <code>corepack pnpm test:e2e:figma</code> for the assisted smoke loop.</li>
-          </ol>
-        </section>
+          <div class="context-item">
+            <div class="context-item-label">Selection</div>
+            <div class="context-item-value" id="fact-selection">0 nodes</div>
+          </div>
+        </div>
       </div>
-    </main>
+
+      <div class="card">
+        <h2 class="section-title">Design Systems</h2>
+        <div class="ds-list" id="design-systems-list">
+          <div class="empty-state">Loading libraries...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Capture & Sync</h2>
+        <p class="message" id="connection-message">Waiting for the local companion to accept connections.</p>
+        <div class="error-box" id="connection-error"></div>
+        
+        <div class="actions-container">
+          <button class="btn btn-primary" id="action-capture">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Capture JSON
+          </button>
+          <button class="btn btn-secondary" id="action-reconnect" title="Reconnect to CLI">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21L21.5 8"></path></svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
     <script>
       const config = ${config};
       const commandResolvers = new Map();
       const state = {
         connectionMessage: "Waiting for the local companion to accept connections.",
         connectionState: "waiting",
-        lastCapture: "No capture yet.",
         lastError: "",
         pageName: "Waiting for runtime status.",
         selectionCount: null,
-        sessionId: null
+        sessionId: null,
+        designSystems: []
       };
+      
       const elements = {
         badge: document.getElementById("connection-badge"),
-        capture: document.getElementById("fact-capture"),
-        companion: document.getElementById("fact-companion"),
+        badgeLabel: document.getElementById("connection-label"),
         error: document.getElementById("connection-error"),
         message: document.getElementById("connection-message"),
         page: document.getElementById("fact-page"),
         selection: document.getElementById("fact-selection"),
-        session: document.getElementById("fact-session")
+        dsList: document.getElementById("design-systems-list")
       };
+
       const badgeLabels = {
         connected: "Connected",
         connecting: "Connecting",
         reconnecting: "Reconnecting",
         waiting: "Waiting"
       };
+
       const postPluginMessage = (message) => {
         parent.postMessage({ pluginMessage: message }, "*");
       };
-      const sleep = (delayMs) =>
-        new Promise((resolve) => {
-          setTimeout(resolve, delayMs);
-        });
+
+      const sleep = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+
       const renderState = () => {
         if (elements.badge) {
           elements.badge.dataset.state = state.connectionState;
-          elements.badge.textContent = badgeLabels[state.connectionState] || "Waiting";
-        }
-
-        if (elements.capture) {
-          elements.capture.textContent = state.lastCapture;
-        }
-
-        if (elements.companion) {
-          elements.companion.textContent = config.companionBaseUrl;
+          if (elements.badgeLabel) {
+            elements.badgeLabel.textContent = badgeLabels[state.connectionState] || "Waiting";
+          }
         }
 
         if (elements.error) {
           elements.error.textContent = state.lastError;
+          if (state.lastError) {
+            elements.error.classList.add('show');
+          } else {
+            elements.error.classList.remove('show');
+          }
         }
 
         if (elements.message) {
@@ -336,331 +411,252 @@ export function renderPluginUiHtml(options: {
 
         if (elements.page) {
           elements.page.textContent = state.pageName;
+          elements.page.title = state.pageName;
         }
 
         if (elements.selection) {
           elements.selection.textContent =
-            state.selectionCount === null ? "Unknown" : String(state.selectionCount);
+            state.selectionCount === null ? "Unknown" : \`\${state.selectionCount} nodes\`;
         }
 
-        if (elements.session) {
-          elements.session.textContent = state.sessionId || "Not connected";
+        if (elements.dsList) {
+          if (state.designSystems && state.designSystems.length > 0) {
+            elements.dsList.innerHTML = state.designSystems.map(ds => \`
+              <div class="ds-card">
+                <h3>\${ds.name}</h3>
+                <p>\${ds.description}</p>
+                \${ds.url ? \`<a href="\${ds.url}" target="_blank">View Library →</a>\` : ''}
+              </div>
+            \`).join("");
+          } else {
+            elements.dsList.innerHTML = '<div class="empty-state">No design systems active.</div>';
+          }
         }
       };
+
       const createCommandId = () => {
         if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
           return globalThis.crypto.randomUUID();
         }
-
         return \`cmd-\${Date.now()}-\${Math.random().toString(16).slice(2)}\`;
       };
-      const toErrorMessage = (error, fallback = "Unexpected companion runtime error.") => {
-        if (error instanceof Error) {
-          return error.message;
-        }
 
+      const toErrorMessage = (error, fallback = "Unexpected companion runtime error.") => {
+        if (error instanceof Error) return error.message;
         return fallback;
       };
+
       const fetchJson = async (url, options = {}) => {
         const response = await fetch(url, options);
         const payload = await response.json().catch(() => null);
 
         if (!response.ok) {
           const message =
-            payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
-              ? payload.error
-              : \`Companion request failed with \${response.status}.\`;
+            payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+              ? payload.error : \`Companion request failed with \${response.status}.\`;
           throw new Error(message);
         }
-
         return payload;
       };
+
       const setConnectionState = (connectionState, message, errorMessage = "") => {
         state.connectionState = connectionState;
         state.connectionMessage = message;
         state.lastError = errorMessage;
         renderState();
       };
-      const summarizeCapture = (document) => {
-        const capture = document && typeof document === "object" ? document.capture : null;
-        const roots =
-          document && typeof document === "object" && Array.isArray(document.roots)
-            ? document.roots
-            : [];
-        const warnings =
-          document &&
-          typeof document === "object" &&
-          Array.isArray(document.warnings)
-            ? document.warnings
-            : capture &&
-                typeof capture === "object" &&
-                "diagnostics" in document &&
-                document.diagnostics &&
-                typeof document.diagnostics === "object" &&
-                Array.isArray(document.diagnostics.warnings)
-              ? document.diagnostics.warnings
-              : [];
-        const selectionCount =
-          capture && typeof capture === "object" && Array.isArray(capture.selection)
-            ? capture.selection.length
-            : capture &&
-                typeof capture === "object" &&
-                Array.isArray(capture.roots)
-              ? capture.roots.length
-              : roots.length;
-        const pageName =
-          capture && typeof capture === "object" && typeof capture.page === "string"
-            ? capture.page
-            : capture &&
-                typeof capture === "object" &&
-                capture.page &&
-                typeof capture.page === "object" &&
-                typeof capture.page.name === "string"
-              ? capture.page.name
-              : null;
 
-        if (pageName && pageName.length > 0) {
-          state.pageName = pageName;
-        }
-
-        state.selectionCount = selectionCount;
-
-        return (
-          String(roots.length) +
-          " root(s), " +
-          String(warnings.length) +
-          " warning(s) at " +
-          new Date().toLocaleTimeString()
-        );
-      };
       const updateRuntimeStatus = (status) => {
         state.pageName = status.page.name;
         state.selectionCount = status.selectionCount;
+        state.designSystems = status.designSystems || [];
         renderState();
       };
+
       const getSessionCommandsUrl = (sessionId) =>
         \`\${config.companionBaseUrl}\${config.pluginSessionsPath}/\${encodeURIComponent(sessionId)}/commands\`;
       const getSessionEventsUrl = (sessionId) =>
         \`\${config.companionBaseUrl}\${config.pluginSessionsPath}/\${encodeURIComponent(sessionId)}/events\`;
+
       let sessionId = null;
       let hasConnected = false;
       let bootstrapCommandId = null;
       renderState();
-      const postEvent = async (event) => {
-        if (!sessionId) {
-          throw new Error("No companion session is available.");
-        }
 
+      const postEvent = async (event) => {
+        if (!sessionId) throw new Error("No companion session is available.");
         await fetchJson(getSessionEventsUrl(sessionId), {
           body: JSON.stringify(event),
-          headers: {
-            "content-type": "application/json"
-          },
+          headers: { "content-type": "application/json" },
           method: "POST"
         });
       };
+
       const runPluginCommand = async (command) => {
-        await new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
           const timer = setTimeout(() => {
             commandResolvers.delete(command.id);
-            reject(
-              new Error(\`Timed out waiting for plugin worker result for \${command.method}.\`)
-            );
-          }, 30000);
+            reject(new Error(\`Timed out waiting for plugin worker result for \${command.method}.\`));
+          }, 60000);
 
           commandResolvers.set(command.id, {
             reject: (error) => {
               clearTimeout(timer);
               reject(error);
             },
-            resolve: () => {
+            resolve: (payload) => {
               clearTimeout(timer);
-              resolve();
+              resolve(payload);
             }
           });
+          
           postPluginMessage({
             payload: command,
             type: "runtime:execute"
           });
         });
       };
+
       const handlePluginResult = async (payload) => {
         if (bootstrapCommandId && payload.commandId === bootstrapCommandId) {
           if ("status" in payload) {
-            await postEvent({
-              payload: payload.status,
-              type: "session:ready"
-            });
+            await postEvent({ payload: payload.status, type: "session:ready" });
             updateRuntimeStatus(payload.status);
             hasConnected = true;
-            setConnectionState(
-              "connected",
-              "Connected. Leave this window open and drive status, capture, or export-json from the CLI."
-            );
+            setConnectionState("connected", "Connected to local companion.");
           } else if ("error" in payload) {
             hasConnected = true;
-            setConnectionState(
-              "connected",
-              "Connected, but the initial runtime status failed. You can still retry from the CLI.",
-              payload.error
-            );
-          } else {
-            throw new Error(
-              "Failed to collect the initial plugin runtime status."
-            );
+            setConnectionState("connected", "Connected, but initial status failed.", payload.error);
           }
         } else {
-          await postEvent({
-            payload,
-            type: "command:result"
-          });
+          // Send back to companion if coming from polling commands
+          if (!payload.fromManualCapture) {
+            await postEvent({ payload, type: "command:result" });
+          }
 
           if ("status" in payload) {
             updateRuntimeStatus(payload.status);
-            setConnectionState(
-              "connected",
-              "Connected. Leave this window open and drive status, capture, or export-json from the CLI."
-            );
-          } else if ("document" in payload) {
-            state.lastCapture = summarizeCapture(payload.document);
-            setConnectionState(
-              "connected",
-              "Latest capture completed successfully. You can now run export-json or the smoke script."
-            );
+            setConnectionState("connected", "Connected to local companion.");
           } else if ("error" in payload) {
-            setConnectionState(
-              "connected",
-              "The plugin session is still connected, but the last command failed.",
-              payload.error
-            );
+            setConnectionState("connected", "Last command failed.", payload.error);
           }
         }
 
         const pending = commandResolvers.get(payload.commandId);
-
-        if (!pending) {
-          return;
-        }
+        if (!pending) return;
 
         commandResolvers.delete(payload.commandId);
-        pending.resolve();
+        pending.resolve(payload);
       };
+
       window.addEventListener("message", async (event) => {
         const message = event.data?.pluginMessage;
-
-        if (!message || typeof message !== "object") {
-          return;
-        }
+        if (!message || typeof message !== "object") return;
 
         if (message.type === "runtime:command-result") {
           try {
             await handlePluginResult(message.payload);
           } catch (error) {
             const pending = commandResolvers.get(message.payload.commandId);
-
             if (pending) {
               commandResolvers.delete(message.payload.commandId);
               pending.reject(error);
             }
-
             if (!hasConnected) {
-              postPluginMessage({
-                message: toErrorMessage(error),
-                type: "runtime:error"
-              });
+              postPluginMessage({ message: toErrorMessage(error), type: "runtime:error" });
             } else {
               sessionId = null;
               state.sessionId = null;
-              setConnectionState(
-                "reconnecting",
-                "The local companion dropped. Retrying automatically.",
-                toErrorMessage(error, "Lost the local companion connection.")
-              );
+              setConnectionState("reconnecting", "Local companion dropped. Retrying.", toErrorMessage(error, "Lost connection."));
             }
           }
         }
       });
+
       const connectSession = async () => {
-        setConnectionState(
-          hasConnected ? "reconnecting" : "connecting",
-          hasConnected
-            ? "Reconnecting to the local companion."
-            : "Connecting to the local companion."
-        );
-        const session = await fetchJson(
-          \`\${config.companionBaseUrl}\${config.pluginSessionsPath}\`,
-          {
-            body: JSON.stringify({
-              pluginVersion: config.pluginVersion
-            }),
-            headers: {
-              "content-type": "application/json"
-            },
-            method: "POST"
-          }
-        );
+        setConnectionState(hasConnected ? "reconnecting" : "connecting", hasConnected ? "Reconnecting..." : "Connecting...");
+        const session = await fetchJson(\`\${config.companionBaseUrl}\${config.pluginSessionsPath}\`, {
+          body: JSON.stringify({ pluginVersion: config.pluginVersion }),
+          headers: { "content-type": "application/json" },
+          method: "POST"
+        });
         sessionId = session.sessionId;
         state.sessionId = sessionId;
         renderState();
         bootstrapCommandId = createCommandId();
-        await postEvent({
-          payload: {
-            at: new Date().toISOString(),
-            level: "info",
-            message: hasConnected
-              ? "Plugin UI reconnected to the local companion."
-              : "Plugin UI connected to the local companion.",
-            scope: "plugin-ui"
-          },
-          type: "session:log"
-        });
-        await runPluginCommand({
-          id: bootstrapCommandId,
-          method: "status"
-        });
+        await runPluginCommand({ id: bootstrapCommandId, method: "status" });
         bootstrapCommandId = null;
       };
+
       const pollCommands = async () => {
         while (sessionId) {
-          const payload = await fetchJson(
-            \`\${getSessionCommandsUrl(sessionId)}?waitMs=\${config.longPollMs}\`
-          );
-
-          if (!payload.command) {
-            continue;
-          }
-
+          const payload = await fetchJson(\`\${getSessionCommandsUrl(sessionId)}?waitMs=\${config.longPollMs}\`);
+          if (!payload.command) continue;
           await runPluginCommand(payload.command);
         }
       };
+
       const start = async () => {
         while (true) {
           try {
-            if (!sessionId) {
-              await connectSession();
-            }
-
+            if (!sessionId) await connectSession();
             await pollCommands();
           } catch (error) {
             sessionId = null;
             state.sessionId = null;
-            setConnectionState(
-              hasConnected ? "reconnecting" : "waiting",
-              hasConnected
-                ? "The local companion is unavailable. Retrying automatically."
-                : "Waiting for the local companion to accept connections. Start corepack pnpm dev:cli if it is not running.",
-              toErrorMessage(
-                error,
-                "Unable to connect to the vibe-figma local companion."
-              )
+            setConnectionState(hasConnected ? "reconnecting" : "waiting", 
+              hasConnected ? "Companion unavailable. Retrying." : "Waiting for companion. Run pnpm dev:cli",
+              toErrorMessage(error, "Connection failed.")
             );
             await sleep(1500);
           }
         }
       };
+
+      // Actions
+      const captureBtn = document.getElementById("action-capture");
+      if (captureBtn) {
+        captureBtn.addEventListener("click", async () => {
+          if (captureBtn.disabled) return;
+          captureBtn.disabled = true;
+          const originalHTML = captureBtn.innerHTML;
+          captureBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: pulse 1s infinite;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Capturing...';
+          
+          try {
+            const commandId = createCommandId();
+            const result = await runPluginCommand({ id: commandId, method: "capture" });
+            
+            if (result.document) {
+              const blob = new Blob([JSON.stringify(result.document, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              const dateTag = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+              a.download = \`vibe-capture-\${dateTag}.json\`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            } else if (result.error) {
+              setConnectionState(state.connectionState, "Manual capture failed.", result.error);
+            }
+          } catch (e) {
+            setConnectionState(state.connectionState, "Manual capture failed.", e.message);
+          } finally {
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = originalHTML;
+          }
+        });
+      }
+
+      const reconnectBtn = document.getElementById("action-reconnect");
+      if (reconnectBtn) {
+        reconnectBtn.addEventListener("click", () => {
+          if (state.connectionState === "connecting" || state.connectionState === "reconnecting") return;
+          sessionId = null;
+          state.sessionId = null;
+        });
+      }
 
       void start();
     </script>

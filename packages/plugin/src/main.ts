@@ -113,6 +113,13 @@ export function captureCurrentSelection(): Promise<DesignDocument> {
 
 function buildRuntimeStatus(pluginApi: PluginRuntimeHost): RuntimeStatus {
   return {
+    designSystems: [
+      {
+        description: "The official design system, providing components and tokens.",
+        name: "Vibe Design System",
+        url: "https://vibe.monday.com/"
+      }
+    ],
     page: {
       id: pluginApi.currentPage.id,
       name: pluginApi.currentPage.name

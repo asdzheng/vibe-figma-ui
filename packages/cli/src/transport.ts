@@ -48,6 +48,11 @@ export type RuntimeSelectionNode = z.infer<typeof runtimeSelectionNodeSchema>;
 
 export const runtimeStatusSchema = z
   .object({
+    designSystems: z.array(z.object({
+      name: z.string().min(1),
+      description: z.string().min(1),
+      url: z.string().min(1).optional()
+    }).strict()).optional(),
     page: z
       .object({
         id: z.string().min(1),

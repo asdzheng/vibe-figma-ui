@@ -18,7 +18,7 @@ Status legend:
 - `[done]` Add `packages/cli` as the primary host-side entrypoint.
 - `[done]` Add a thin local companion server for session routing, logs, and live commands.
 - `[done]` Add CLI commands for `init`, `status`, `capture`, `export-json`, `logs`, and `doctor`.
-- `[done]` Leave `screenshot` as an explicit unsupported command for now instead of pretending the path exists.
+- `[done]` Add `screenshot` as a supported CLI command that reverse-renders canonical JSON into a local SVG artifact.
 
 ## Phase 3: Refactor The Plugin Runtime
 
@@ -45,6 +45,7 @@ Status legend:
 - `[done]` Implement a thin local SVG snapshot path behind `vibe-figma screenshot`.
 - `[doing]` Re-run the full automated suite in an environment that permits localhost listeners.
 - `[doing]` Run live Figma manual verification against the updated plugin, companion flow, and snapshot path.
+- `[doing]` Refresh the representative canonical-size regression fixture and thresholds so automated budgets match the newer 400-line-class outputs now checked in under `artifacts/manual/`.
 
 ## Phase 7: Schema v0.2 Minimal Canonical
 
@@ -54,5 +55,7 @@ Status legend:
 - `[done]` Rewrite default canonical emission so component usage, literal visual values, and layout intent are inlined directly on nodes without top-level registries.
 - `[done]` Remove default fallback blobs, default radius and overflow payload, and repeated resolved geometry from the default canonical output.
 - `[done]` Add a first size-budget regression test for representative live exports.
-- `[doing]` Keep the current v0.1-like payload behind an explicit user-facing `debug` profile during migration.
-- `[doing]` Reduce the representative export further so v0.2 meets the stricter line-count target, not only the minified-size target.
+- `[done]` Keep the current v0.1-like payload available through internal `debug` profile handling in `capture-core` and runtime capture.
+- `[doing]` Decide whether `debug` should remain internal or be exposed as an explicit CLI/user-facing profile.
+- `[done]` Reduce the latest checked-in canonical samples into the 400-line range for the current representative manual exports.
+- `[doing]` Replace the older `artifacts/e2e/current-export.json` budget target with a fresher representative canonical regression fixture.
