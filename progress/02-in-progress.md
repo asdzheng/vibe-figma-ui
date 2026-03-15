@@ -2,13 +2,13 @@
 
 ## Active Track
 
-The current track is schema v0.2 redesign on top of the CLI-first V2 runtime migration.
+The current track is post-compaction cleanup on top of the CLI-first V2 runtime migration.
 
 ## Current Focus
 
-- Replace the registry-backed canonical contract with a minimal page-semantics contract.
-- Reduce the default canonical JSON until it describes the page, not the authoring system behind the page.
-- Separate default semantic payload from debug or component-export payloads.
+- Keep the default canonical path small and representative now that the latest checked-in manual samples are in the `386-417` line range.
+- Refresh regression fixtures and docs so tracked budgets match the current output instead of the older `1,562`-line baseline.
+- Decide whether `debug` should stay internal or become an explicit CLI-visible export profile.
 - Keep the active architecture boundaries clean:
   - `plugin` is the Figma-side runtime endpoint
   - `cli` is the host-side control surface and local companion
@@ -16,13 +16,13 @@ The current track is schema v0.2 redesign on top of the CLI-first V2 runtime mig
 
 ## Next Concrete Tasks
 
-1. Expose an explicit user-facing `debug` profile so the legacy `0.1` payload is available on purpose instead of only through internal calls.
-2. Remove more repeated leaf-node and label noise from v0.2 so simple structured pages do not expand into long pretty-printed trees.
-3. Move more of the v0.2 emitter from conversion logic toward schema-native semantic emission where the current converter still mirrors too much normalized structure.
-4. Re-capture `Examples/Upcoming-Mobile` and push the current `1,562`-line baseline downward.
+1. Replace the stale canonical-size baseline in `progress/`, tests, and supporting notes with a current representative fixture that reflects the checked-in `386-417` line outputs.
+2. Decide whether to expose CLI profile selection for `debug`, or explicitly document that `debug` remains an internal API-only path.
+3. Re-run live Figma verification for plugin launch, reconnect, capture, smoke-loop behavior, and SVG snapshot output.
+4. Continue runtime extraction and policy-injection work where the live runtime still lags behind the policy engine and fixture coverage.
 
 ## Exit Criteria
 
-- The representative canonical export is materially smaller than the current `1,562`-line and `45,062`-byte v0.2 baseline and trends toward the stricter RFC target.
+- The checked-in representative canonical samples remain in the current `386-417` line range and stay materially below the older `1,562`-line budget still referenced by legacy notes.
 - `lint`, `typecheck`, `test`, and `build` are green on the active packages.
 - Manual Figma verification still confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output after the schema rewrite.

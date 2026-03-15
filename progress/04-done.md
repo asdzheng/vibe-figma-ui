@@ -1,5 +1,14 @@
 # Done
 
+## 2026-03-15
+
+- Re-checked the active workspace against the progress docs and confirmed the implementation still defaults to schema `0.2` canonical output in code.
+- Confirmed the latest checked-in representative canonical samples under `artifacts/manual/` are now far smaller than the older baseline:
+  - `artifacts/manual/current-selection-v0.2.json`: `386` lines, `9,511` pretty bytes, `3,653` minified bytes.
+  - `artifacts/manual/current-selection-v0.2.live.json`: `417` lines, `10,716` pretty bytes, `4,237` minified bytes.
+- Confirmed internal `debug` profile support now exists in `capture-core` and runtime capture code paths, while the CLI still exports only the canonical default profile.
+- Updated the progress tracking docs so current status, plan, in-progress work, and open issues reflect the codebase rather than the older `1,562`-line canonical baseline.
+
 ## 2026-03-11
 
 - Implemented schema `0.2` as the default canonical export shape and kept the old `0.1` registry-backed document as an internal debug-oriented path.
