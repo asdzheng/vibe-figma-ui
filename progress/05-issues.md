@@ -2,7 +2,8 @@
 
 ## Current Known Gaps
 
-- The new CLI `screenshot` command produces reverse-rendered SVG or HTML preview artifacts, not a native Figma raster screenshot, so exact visual parity still requires manual comparison in Figma.
+- The new CLI `screenshot` command now produces materially stronger reverse-rendered SVG or HTML preview artifacts, but it is still not a native Figma raster screenshot, so exact visual parity still requires manual comparison in Figma.
+- Even with better inferred sizing, typography, gradients, shadows, and component coverage, local-first snapshot output still cannot reproduce native Figma image fills, vector paths, or remote-instance internals that were never captured into the JSON payload.
 - The larger live export class represented by `artifacts/manual/p0-live-capture.json` is materially smaller after the shorthand pass but is still much bigger than the smaller checked-in representative fixture, so any future optimization work should stay focused on schema structure rather than runtime feature plumbing.
 - When the canonical transport schema changes, any already-running companion process must be restarted before live capture verification. A stale companion process will reject the new shorthand payload forms on `/events` even though the codebase and tests are correct.
 

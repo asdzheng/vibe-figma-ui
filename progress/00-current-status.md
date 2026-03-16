@@ -9,6 +9,7 @@ Last updated: 2026-03-16
 - The plugin no longer auto-uploads a capture to a heavy bridge. It now keeps a live session open and answers `status` and `capture` commands from the companion.
 - The plugin window is now a visible Figma-side smoke panel that shows connection state, current page/selection status, and the latest capture summary while it retries the companion connection automatically.
 - `vibe-figma screenshot` now produces either a local SVG artifact or an HTML browser preview by reverse-rendering canonical JSON from either a live capture or an exported file.
+- The local screenshot renderer now infers hug/fill sizing more accurately, uses stronger text metrics, applies captured gradient and drop-shadow hints from debug exports, clips scrollable containers, and materially reduces generic placeholder instance cards in the checked snapshot fixtures.
 - The default export path still emits schema `0.2` canonical JSON in code, but the latest checked-in representative manual exports are now down to `359-392` lines instead of the older `1,562`-line baseline tracked earlier.
 - The CLI now exposes `--profile canonical|debug`, so the older `0.1`-style debug payload is available as an explicit user-facing path when needed.
 - Runtime extraction now covers vectors, boolean operations, layout grids, and mixed-text segment payloads in both the direct adapter path and the live runtime capture path.
@@ -38,6 +39,7 @@ Last updated: 2026-03-16
 - Reworked the live smoke script to wait for a live plugin session and request capture through the companion command path.
 - Updated packaging to ship the plugin bundle plus CLI artifact rather than bridge and MCP tarballs.
 - Rewrote repository documentation and progress tracking around the CLI-first V2 model.
+- Strengthened the reverse-render snapshot path with better inferred sizing, text layout, captured gradients/shadows, clip-path handling, and broader Material instance coverage so checked local artifacts are visibly closer to the Figma source without using a native screenshot API.
 - Implemented the first production compaction pass for canonical JSON without dropping hierarchy, ordering, component refs, or token refs.
 - Drafted the new v0.2 schema RFC that removes default canonical registries, replaces opaque refs with readable inline semantics, and treats authored layout intent as more important than resolved geometry.
 - Implemented schema `0.2` in the active export path, updated snapshot rendering to accept both `0.1` and `0.2`, and added a first size-budget regression test for the checked-in representative export.
@@ -68,6 +70,10 @@ Start the next structural reduction pass only if larger real-world selections st
 - `corepack pnpm test` passes in the current unrestricted workspace state.
 - `corepack pnpm typecheck` passes in the current workspace state.
 - `corepack pnpm build` passes in the current workspace state.
+- The strengthened local snapshot path is now covered by additional CLI and renderer assertions:
+  - the shorthand canonical sample now renders with `11` materialized instances and `0` placeholders through the built `vibe-figma screenshot` command
+  - the checked debug live export now renders with `25` materialized instances and `4` placeholders through the built `vibe-figma screenshot` command
+  - `packages/cli/test/snapshot.test.ts` now asserts canonical list-item materialization and debug gradient/shadow defs
 - A real Figma desktop session answered `vibe-figma status` and `vibe-figma sessions` on `2026-03-16`, confirming the rebuilt companion process had a fresh live plugin session attached.
 - The first live rerun on `2026-03-16` exposed two real desktop-only shaping bugs that were then fixed in code:
   - mixed Figma `Symbol` sentinels still leaked into async style lookup and numeric runtime fields

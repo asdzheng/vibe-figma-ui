@@ -2,6 +2,9 @@
 
 ## 2026-03-16
 
+- Strengthened the local screenshot renderer so it now uses better hug/fill size inference, stronger text metrics and wrapping, captured gradient and drop-shadow hints from debug exports, clip paths for scrollable containers, and broader Material component materialization instead of generic placeholder cards.
+- Added renderer regressions that specifically lock in canonical list-item materialization plus debug gradient/shadow output in `packages/cli/test/snapshot.test.ts`.
+- Rebuilt the CLI and verified the shipped screenshot command now reports `11` materialized instances / `0` placeholders for `artifacts/manual/current-selection-v0.2.live.json` and `25` materialized instances / `4` placeholders for `artifacts/manual/p0-live-capture.debug.json`.
 - Landed the next V3 canonical compaction pass under schema `0.2` so simple component usage, plain text payloads, and literal visual values emit shorthand forms instead of repetitive wrapper objects.
 - Removed duplicate text `style.fill` output in canonical text nodes, keeping `style.textColor` as the single color fact for text content.
 - Dropped selected generic non-root wrapper names such as `Content` and `state-layer` from canonical output when they do not add semantic value.

@@ -148,7 +148,7 @@ The current checked representative samples under `artifacts/manual/` are in the 
 
 When multiple plugin windows are connected, use `vibe-figma sessions` and pass `--session <id>` to target a specific one.
 
-`screenshot` now renders a local reverse-render verification artifact from canonical JSON. Use an `.svg` output path for the raw SVG or an `.html` output path for a browser preview wrapper. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
+`screenshot` now renders a stronger local reverse-render artifact from canonical JSON. The renderer uses better inferred sizing for hug/fill nodes, improved text metrics, broader Material component materialization, and captured gradient/shadow hints from debug exports where available. Use an `.svg` output path for the raw SVG or an `.html` output path for a browser preview wrapper. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
 
 ## Typical Local Flow
 
@@ -202,7 +202,7 @@ Still manual in Figma:
 - importing the plugin manifest into Figma desktop
 - opening a Figma file with a real selection
 - running the `Vibe Figma UI` plugin and keeping its window open during the smoke loop
-- visually comparing the reverse-rendered SVG against Figma when exact pixel output matters
+- visually comparing the reverse-rendered SVG against Figma when exact pixel output matters, especially for native image/vector details that are not available in the local-first capture
 
 ## Package Layout
 

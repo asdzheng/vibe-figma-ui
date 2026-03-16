@@ -26,6 +26,14 @@ async function loadCurrentCanonicalDocument() {
   );
 }
 
+async function loadCurrentLiveDebugDocument() {
+  return designDocumentSchema.parse(
+    JSON.parse(
+      await readFile(resolve("artifacts/manual/p0-live-capture.debug.json"), "utf8")
+    ) as unknown
+  );
+}
+
 describe("renderDesignDocumentSnapshot", () => {
   test("renders the sample capture into a self-contained SVG", async () => {
     const document = await loadSampleCaptureDocument();
@@ -69,6 +77,18 @@ describe("renderDesignDocumentSnapshot", () => {
     expect(rendered.svg).toContain("<svg");
     expect(rendered.svg).toContain("App bar");
     expect(rendered.svg).toContain("Section title");
+    expect(rendered.svg).toContain("Supporting line text");
     expect(rendered.stats.instanceCount).toBeGreaterThanOrEqual(1);
+    expect(rendered.stats.materializedInstanceCount).toBeGreaterThanOrEqual(10);
+    expect(rendered.stats.fallbackInstanceCount).toBe(0);
+  });
+
+  test("uses captured gradients and shadows from the live debug export", async () => {
+    const document = await loadCurrentLiveDebugDocument();
+    const rendered = renderDesignDocumentSnapshot(document);
+
+    expect(rendered.svg).toContain("<defs>");
+    expect(rendered.svg).toContain("<linearGradient");
+    expect(rendered.svg).toContain("feDropShadow");
   });
 });
