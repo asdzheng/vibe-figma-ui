@@ -1,7 +1,6 @@
 import type {
   AnyDesignNode,
   CanonicalTokenOrValue,
-  ComponentUse,
   ComponentPropertyValue,
   DesignDocument,
   DesignNodeV0_2,
@@ -330,11 +329,27 @@ function getCanonicalColor(
     return undefined;
   }
 
-  if ("value" in value && value.value.startsWith("#")) {
-    return value.value;
+  if (typeof value === "string" && value.startsWith("#")) {
+    return value;
   }
 
   return undefined;
+}
+
+function getCanonicalComponentUse(
+  node: DesignNodeV0_2
+): Exclude<DesignNodeV0_2["component"], string | undefined> | undefined {
+  return node.component && typeof node.component !== "string" ? node.component : undefined;
+}
+
+function getCanonicalComponentName(node: DesignNodeV0_2): string | undefined {
+  return typeof node.component === "string"
+    ? node.component
+    : getCanonicalComponentUse(node)?.name;
+}
+
+function getCanonicalTextValue(node: DesignNodeV0_2): string | undefined {
+  return typeof node.text === "string" ? node.text : node.text?.value;
 }
 
 function getPaintColor(document: DesignDocument, paint: PaintValue | undefined): string | undefined {
@@ -367,8 +382,12 @@ function getPrimaryPaintColor(
   fallbackColor: string
 ): string {
   if (!isDesignDocumentV0_1(document)) {
-    const values = Array.isArray(paints) ? paints : paints ? [paints] : [];
-    const color = values.map((value) => getCanonicalColor(value as CanonicalTokenOrValue)).find(Boolean);
+    const values = Array.isArray(paints)
+      ? (paints as CanonicalTokenOrValue[])
+      : paints
+        ? [paints as CanonicalTokenOrValue]
+        : [];
+    const color = values.map((value) => getCanonicalColor(value)).find(Boolean);
 
     return color ?? fallbackColor;
   }
@@ -552,13 +571,15 @@ function getInstanceMetadata(
   node: DesignNode
 ): InstanceMetadata | null {
   if (isV02Node(node)) {
-    if (!node.component) {
+    const componentName = getCanonicalComponentName(node);
+
+    if (!componentName) {
       return null;
     }
 
     return {
-      componentName: node.component.name,
-      componentSetName: node.component.name
+      componentName,
+      componentSetName: componentName
     };
   }
 
@@ -595,7 +616,7 @@ function getInstanceProperties(
   node: DesignNode
 ): SnapshotComponentProperties | Record<string, ComponentPropertyValue> {
   if (isV02Node(node)) {
-    return node.component?.props ?? {};
+    return getCanonicalComponentUse(node)?.props ?? {};
   }
 
   return node.designSystem?.instance?.properties ?? {};
@@ -658,7 +679,7 @@ function findOverrideText(
   propertyNames: readonly string[]
 ): string | null {
   if (isV02Node(node)) {
-    return findTextProperty(node.component?.props ?? {}, propertyNames);
+    return findTextProperty(getCanonicalComponentUse(node)?.props ?? {}, propertyNames);
   }
 
   const overrideEntries = Object.entries(node.designSystem?.instance?.overrides ?? {});
@@ -681,7 +702,7 @@ function findOverrideText(
 
 function getVariantLabels(node: DesignNode): string[] {
   const variantEntries = isV02Node(node)
-    ? Object.entries(node.component?.variant ?? {})
+    ? Object.entries(getCanonicalComponentUse(node)?.variant ?? {})
     : Object.entries(node.designSystem?.instance?.variant ?? {});
 
   return variantEntries
@@ -725,7 +746,7 @@ function renderTextNode(node: DesignNode, context: RenderContext): string {
   const { width } = getNodeSize(node);
 
   const textValue = isV02Node(node)
-    ? node.text?.value ?? node.name ?? ""
+    ? getCanonicalTextValue(node) ?? node.name ?? ""
     : node.content?.text?.characters ?? node.name;
   const textColor = isV02Node(node)
     ? getPrimaryPaintColor(
@@ -995,28 +1016,40 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
   const setName = metadata?.componentSetName?.toLowerCase() ?? "";
   const fallbackName = node.name ?? "instance";
   const componentName = metadata?.componentName.toLowerCase() ?? fallbackName.toLowerCase();
+  const { markup, materialized } = (() => {
+    if (componentName.includes("status-bar")) {
+      return { markup: renderStatusBar(width), materialized: true };
+    }
 
-  let markup = "";
-  let materialized = true;
+    if (setName === "app bar") {
+      return { markup: renderAppBar(width, height, node), materialized: true };
+    }
 
-  if (componentName.includes("status-bar")) {
-    markup = renderStatusBar(width);
-  } else if (setName === "app bar") {
-    markup = renderAppBar(width, height, node);
-  } else if (setName === "carousel") {
-    markup = renderCarousel(width, height);
-  } else if (setName === "icon button - standard") {
-    markup = renderIconButton(width, height, node);
-  } else if (fallbackName.toLowerCase().includes("button")) {
-    markup = renderTextButton(width, height, node);
-  } else if (componentName.includes("navigation")) {
-    markup = renderGestureBar(width, height);
-  } else if (componentName.includes("condition=3 line+")) {
-    markup = renderListItem(width, height, node);
-  } else {
-    markup = renderFallbackInstance(width, height, node);
-    materialized = false;
-  }
+    if (setName === "carousel") {
+      return { markup: renderCarousel(width, height), materialized: true };
+    }
+
+    if (setName === "icon button - standard") {
+      return { markup: renderIconButton(width, height, node), materialized: true };
+    }
+
+    if (fallbackName.toLowerCase().includes("button")) {
+      return { markup: renderTextButton(width, height, node), materialized: true };
+    }
+
+    if (componentName.includes("navigation")) {
+      return { markup: renderGestureBar(width, height), materialized: true };
+    }
+
+    if (componentName.includes("condition=3 line+")) {
+      return { markup: renderListItem(width, height, node), materialized: true };
+    }
+
+    return {
+      markup: renderFallbackInstance(width, height, node),
+      materialized: false
+    };
+  })();
 
   if (materialized) {
     context.stats.materializedInstanceCount += 1;
@@ -1052,21 +1085,26 @@ function renderNode(
     ? { x: 0, y: 0 }
     : options.position ?? getNodePosition(node);
   const { width, height } = getNodeSize(node);
-  let content = "";
-
-  if (node.kind === "text") {
-    content = renderTextNode(node, context);
-  } else if (node.kind === "instance") {
-    content = renderInstanceNode(node, context);
-  } else {
-    const fallbackFill = node.kind === "frame" ? FALLBACK_SURFACE : null;
-    const background = renderBackground(context.document, node, width, height, fallbackFill);
-    const children = renderChildren(node, context);
-
-    content = `${background}${children}`;
-  }
+  const content =
+    node.kind === "text"
+      ? renderTextNode(node, context)
+      : node.kind === "instance"
+        ? renderInstanceNode(node, context)
+        : `${renderBackground(
+            context.document,
+            node,
+            width,
+            height,
+            node.kind === "frame" ? FALLBACK_SURFACE : null
+          )}${renderChildren(node, context)}`;
 
   return `<g transform="translate(${formatNumber(x)}, ${formatNumber(y)})">${content}</g>`;
+}
+
+function getDocumentPageLabel(document: DesignDocument): string {
+  return isDesignDocumentV0_1(document)
+    ? document.capture.page.name
+    : document.capture.page;
 }
 
 export function renderDesignDocumentSnapshot(document: DesignDocument): SnapshotRenderResult {
@@ -1120,4 +1158,93 @@ export function renderDesignDocumentSnapshot(document: DesignDocument): Snapshot
     ].join(""),
     width
   };
+}
+
+export function renderDesignDocumentSnapshotHtml(
+  document: DesignDocument,
+  renderResult = renderDesignDocumentSnapshot(document)
+): string {
+  const pageLabel = escapeXml(getDocumentPageLabel(document));
+
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "  <head>",
+    '    <meta charset="utf-8" />',
+    '    <meta name="viewport" content="width=device-width, initial-scale=1" />',
+    `    <title>${pageLabel} Snapshot</title>`,
+    "    <style>",
+    "      :root {",
+    "        color-scheme: light;",
+    "        font-family: Inter, 'SF Pro Display', 'Segoe UI', sans-serif;",
+    "      }",
+    "      * { box-sizing: border-box; }",
+    "      body {",
+    "        margin: 0;",
+    "        min-height: 100vh;",
+    "        background: linear-gradient(180deg, #f7f1e9 0%, #ece4d8 100%);",
+    "        color: #1b1d18;",
+    "      }",
+    "      main {",
+    "        max-width: 1200px;",
+    "        margin: 0 auto;",
+    "        padding: 32px 24px 48px;",
+    "      }",
+    "      .header {",
+    "        display: flex;",
+    "        justify-content: space-between;",
+    "        align-items: flex-end;",
+    "        gap: 16px;",
+    "        margin-bottom: 24px;",
+    "      }",
+    "      h1 {",
+    "        margin: 0;",
+    "        font-size: 28px;",
+    "        line-height: 1.05;",
+    "      }",
+    "      .meta {",
+    "        display: flex;",
+    "        gap: 12px;",
+    "        flex-wrap: wrap;",
+    "        color: #5d6158;",
+    "        font-size: 13px;",
+    "      }",
+    "      .chip {",
+    "        padding: 8px 12px;",
+    "        border-radius: 999px;",
+    "        background: rgba(255,255,255,0.75);",
+    "        border: 1px solid rgba(27, 29, 24, 0.08);",
+    "      }",
+    "      .canvas {",
+    "        overflow: auto;",
+    "        padding: 20px;",
+    "        border-radius: 20px;",
+    "        background: rgba(255,255,255,0.6);",
+    "        border: 1px solid rgba(27, 29, 24, 0.08);",
+    "        box-shadow: 0 18px 48px rgba(64, 52, 40, 0.12);",
+    "      }",
+    "      .canvas svg {",
+    "        display: block;",
+    "        max-width: 100%;",
+    "        height: auto;",
+    "      }",
+    "    </style>",
+    "  </head>",
+    "  <body>",
+    "    <main>",
+    '      <div class="header">',
+    `        <div><h1>${pageLabel}</h1></div>`,
+    '        <div class="meta">',
+    `          <div class="chip">${renderResult.stats.nodeCount} nodes</div>`,
+    `          <div class="chip">${renderResult.stats.instanceCount} instances</div>`,
+    `          <div class="chip">${renderResult.width} x ${renderResult.height}</div>`,
+    "        </div>",
+    "      </div>",
+    '      <div class="canvas">',
+    renderResult.svg,
+    "      </div>",
+    "    </main>",
+    "  </body>",
+    "</html>"
+  ].join("\n");
 }

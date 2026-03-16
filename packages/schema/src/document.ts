@@ -39,6 +39,13 @@ const boundsSchema = z
   })
   .strict();
 
+const gridTrackSchema = z
+  .object({
+    type: z.enum(["flex", "fixed", "hug"]),
+    value: z.number().optional()
+  })
+  .strict();
+
 const layoutSchema = z
   .object({
     align: z
@@ -61,7 +68,29 @@ const layoutSchema = z
       .strict()
       .optional(),
     gap: z.number().optional(),
-    mode: z.enum(["none", "row", "column"]).optional(),
+    grid: z
+      .object({
+        columnGap: z.number().optional(),
+        columnSizes: z.array(gridTrackSchema).optional(),
+        columns: z.number().int().positive().optional(),
+        rowGap: z.number().optional(),
+        rowSizes: z.array(gridTrackSchema).optional(),
+        rows: z.number().int().positive().optional()
+      })
+      .strict()
+      .optional(),
+    gridChild: z
+      .object({
+        column: z.number().int().nonnegative().optional(),
+        columnSpan: z.number().int().positive().optional(),
+        horizontalAlign: z.enum(["start", "center", "end"]).optional(),
+        row: z.number().int().nonnegative().optional(),
+        rowSpan: z.number().int().positive().optional(),
+        verticalAlign: z.enum(["start", "center", "end"]).optional()
+      })
+      .strict()
+      .optional(),
+    mode: z.enum(["none", "row", "column", "grid"]).optional(),
     overflow: z
       .object({
         x: z.enum(["visible", "scroll", "hidden"]).optional(),
@@ -158,6 +187,19 @@ const textContentSchema = z
     characters: z.string(),
     fill: z.array(paintValueSchema).optional(),
     maxLines: z.number().int().positive().optional(),
+    segments: z
+      .array(
+        z
+          .object({
+            characters: z.string(),
+            end: z.number().int().nonnegative(),
+            fill: z.array(paintValueSchema).optional(),
+            start: z.number().int().nonnegative(),
+            textStyleRef: styleRefSchema.optional()
+          })
+          .strict()
+      )
+      .optional(),
     textStyleRef: styleRefSchema.optional()
   })
   .strict();
@@ -781,14 +823,10 @@ export const designDocumentV0_1Schema = baseDesignDocumentV01Schema.superRefine(
 const componentValueSchema = z.union([z.string().min(1), z.boolean()]);
 
 const canonicalTokenOrValueSchema = z.union([
+  z.string().min(1),
   z
     .object({
       token: z.string().min(1)
-    })
-    .strict(),
-  z
-    .object({
-      value: z.string().min(1)
     })
     .strict(),
   z
@@ -871,12 +909,15 @@ const canonicalStyleSchema = z
   })
   .strict();
 
-const canonicalTextSchema = z
-  .object({
-    lines: z.number().int().positive().optional(),
-    value: z.string()
-  })
-  .strict();
+const canonicalTextSchema = z.union([
+  z.string(),
+  z
+    .object({
+      lines: z.number().int().positive().optional(),
+      value: z.string()
+    })
+    .strict()
+]);
 
 const canonicalImageSchema = z
   .object({
@@ -885,15 +926,18 @@ const canonicalImageSchema = z
   })
   .strict();
 
-const componentUseSchema = z
-  .object({
-    library: z.string().min(1).optional(),
-    name: z.string().min(1),
-    props: z.record(z.string(), componentValueSchema).optional(),
-    status: z.enum(["mapped", "unmapped"]).optional(),
-    variant: z.record(z.string(), z.union([z.string(), z.boolean()])).optional()
-  })
-  .strict();
+const componentUseSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      library: z.string().min(1).optional(),
+      name: z.string().min(1),
+      props: z.record(z.string(), componentValueSchema).optional(),
+      status: z.enum(["mapped", "unmapped"]).optional(),
+      variant: z.record(z.string(), z.union([z.string(), z.boolean()])).optional()
+    })
+    .strict()
+]);
 
 export type CanonicalTokenOrValue = z.infer<typeof canonicalTokenOrValueSchema>;
 export type ComponentUse = z.infer<typeof componentUseSchema>;

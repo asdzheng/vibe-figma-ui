@@ -17,7 +17,7 @@ function createDocument(overrides = {}) {
         id: "1:2",
         name: "Checkout"
       },
-      pluginVersion: "0.8.0",
+      pluginVersion: "0.9.0",
       selection: [{ id: "2:1", kind: "frame" }]
     },
     diagnostics: {
@@ -25,6 +25,30 @@ function createDocument(overrides = {}) {
     },
     roots: [{ id: "12:34", kind: "frame" }],
     schemaVersion: "0.1",
+    ...overrides
+  };
+}
+
+function createCompanionStatus(overrides = {}) {
+  return {
+    connected: true,
+    current: {
+      status: {
+        page: {
+          id: "1:2",
+          name: "Checkout"
+        },
+        pluginVersion: "0.9.0",
+        selectionCount: 1
+      }
+    },
+    sessions: [
+      {
+        id: "session-123",
+        isActive: true,
+        pluginVersion: "0.9.0"
+      }
+    ],
     ...overrides
   };
 }
@@ -73,10 +97,10 @@ describe("parseFigmaE2eArgs", () => {
     });
   });
 
-  test("accepts the legacy bridge-url flag as a transitional alias", () => {
-    expect(parseFigmaE2eArgs(["--bridge-url=http://localhost:4011/"])).toMatchObject({
-      companionBaseUrl: "http://localhost:4011"
-    });
+  test("rejects the removed legacy bridge-url flag", () => {
+    expect(() =>
+      parseFigmaE2eArgs(["--bridge-url=http://localhost:4011/"])
+    ).toThrow("`--bridge-url` has been removed. Use `--companion-url` instead.");
   });
 });
 
@@ -94,8 +118,41 @@ describe("validateSmokeCapture", () => {
     expect(result.summary).toMatchObject({
       diagnosticsCount: 0,
       pageName: "Checkout",
-      pluginVersion: "0.8.0",
+      pluginVersion: "0.9.0",
       rootCount: 1,
+      selectionCount: 1
+    });
+  });
+
+  test("accepts the canonical capture shape with status fallbacks", () => {
+    const result = validateSmokeCapture(
+      {
+        capture: {
+          page: "Checkout",
+          roots: ["2:1"]
+        },
+        roots: [{ id: "12:34", kind: "frame" }],
+        schemaVersion: "0.2"
+      },
+      {
+        expectPageName: "Checkout",
+        maxDiagnostics: 0,
+        minRoots: 1,
+        minSelectionCount: 1
+      },
+      {
+        status: createCompanionStatus()
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.summary).toMatchObject({
+      diagnosticsCount: 0,
+      pageName: "Checkout",
+      pluginVersion: "0.9.0",
+      rootCount: 1,
+      schemaVersion: "0.2",
       selectionCount: 1
     });
   });
@@ -122,6 +179,21 @@ describe("validateSmokeCapture", () => {
         maxDiagnostics: 0,
         minRoots: 1,
         minSelectionCount: 1
+      },
+      {
+        status: {
+          connected: true,
+          current: {
+            status: {
+              page: {
+                id: "1:2",
+                name: "Canvas"
+              },
+              pluginVersion: "",
+              selectionCount: 0
+            }
+          }
+        }
       }
     );
 

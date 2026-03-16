@@ -82,8 +82,9 @@ Supported environment variables:
 - `VIBE_FIGMA_COMPANION_URL`
 - `VIBE_FIGMA_COMPANION_HOST`
 - `VIBE_FIGMA_COMPANION_PORT`
+- `VIBE_FIGMA_STATE_PATH`
 
-Legacy `VIBE_FIGMA_BRIDGE_*` names are still accepted as transitional fallbacks for the CLI companion, but they are no longer the documented primary path.
+Legacy `VIBE_FIGMA_BRIDGE_*` names are no longer accepted. Rename them to the matching `VIBE_FIGMA_COMPANION_*` variables.
 
 ## Install The Figma Plugin
 
@@ -120,17 +121,34 @@ Once the companion is running and the plugin is open in Figma:
 
 ```bash
 corepack pnpm cli -- status
+corepack pnpm cli -- sessions
 corepack pnpm cli -- capture
+corepack pnpm cli -- capture --profile debug
 corepack pnpm cli -- export-json --output artifacts/manual/capture.json
+corepack pnpm cli -- export-json --session <id> --output artifacts/manual/capture.json
 corepack pnpm cli -- screenshot --output artifacts/manual/live-screenshot.svg
+corepack pnpm cli -- screenshot --output artifacts/manual/live-preview.html
 corepack pnpm cli -- logs --limit 100
 ```
 
 `export-json` always prints the default schema `0.2` canonical JSON document to stdout. `--output` also writes the same JSON to disk.
 
+Pass `--profile debug` when you need the older `0.1`-style audit payload instead of the default canonical export.
+
 The default canonical output no longer includes top-level registries. It inlines readable component names, variant usage, literal visual values, and authored layout intent directly on nodes.
 
-`screenshot` now renders a local SVG verification artifact from canonical JSON. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
+Simple canonical leaf values now use shorthand forms to keep larger captures smaller:
+
+- name-only component usage becomes `"component": "Button"`
+- literal colors and image refs can stay as bare strings instead of `{ "value": ... }`
+- plain text nodes can stay as `"text": "Section title"` unless extra metadata such as `lines` is needed
+- text nodes no longer duplicate the same fact in both `style.fill` and `style.textColor`
+
+The current checked representative samples under `artifacts/manual/` are in the `359-392` line range, and the larger checked optimization fixture `artifacts/manual/p0-live-capture.json` is currently `1,182` lines / `37,186` pretty bytes / `11,072` minified bytes.
+
+When multiple plugin windows are connected, use `vibe-figma sessions` and pass `--session <id>` to target a specific one.
+
+`screenshot` now renders a local reverse-render verification artifact from canonical JSON. Use an `.svg` output path for the raw SVG or an `.html` output path for a browser preview wrapper. Without `--input`, it captures live from the connected plugin first. With `--input`, it reverse-renders an existing exported JSON file.
 
 ## Typical Local Flow
 
@@ -196,9 +214,9 @@ Active V2 packages:
 - `packages/cli`: local companion server and CLI entrypoint
 - `packages/fixtures`: deterministic regression fixtures
 
-Deferred legacy packages:
+Archived legacy packages:
 
 - `packages/ui-bridge`
 - `packages/mcp-server`
 
-They remain in the repository only as old V1-era references and are excluded from the active workspace and verification path.
+They remain in the repository only as archived V1-era references, are marked private, and are excluded from the active workspace and verification path.

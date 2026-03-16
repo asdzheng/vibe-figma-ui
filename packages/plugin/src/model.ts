@@ -1,5 +1,12 @@
 import type {
+  ComponentPolicyRule,
   ComponentPropertyValue,
+  DesignDocument,
+  DesignRegistries
+} from "@vibe-figma/schema";
+import type { ComponentPolicyContext } from "@vibe-figma/capture-core";
+
+export type {
   DesignDocument,
   DesignRegistries
 } from "@vibe-figma/schema";
@@ -61,6 +68,19 @@ export type FigmaComponentPropertyLike = {
   variableRef?: string | undefined;
 };
 
+export type FigmaGridTrackLike = {
+  type: "FLEX" | "FIXED" | "HUG";
+  value?: number | undefined;
+};
+
+export type FigmaTextSegmentLike = {
+  characters: string;
+  end: number;
+  fill?: readonly FigmaPaintLike[] | undefined;
+  start: number;
+  textStyleRef?: string | undefined;
+};
+
 export type FigmaNodeLike = {
   characters?: string | undefined;
   children?: readonly FigmaNodeLike[] | undefined;
@@ -77,6 +97,18 @@ export type FigmaNodeLike = {
   effects?: readonly FigmaEffectLike[] | undefined;
   fillStyleRef?: string | undefined;
   fills?: readonly FigmaPaintLike[] | undefined;
+  gridChildHorizontalAlign?: "MIN" | "CENTER" | "MAX" | "AUTO" | undefined;
+  gridChildVerticalAlign?: "MIN" | "CENTER" | "MAX" | "AUTO" | undefined;
+  gridColumnAnchorIndex?: number | undefined;
+  gridColumnCount?: number | undefined;
+  gridColumnGap?: number | undefined;
+  gridColumnSizes?: readonly FigmaGridTrackLike[] | undefined;
+  gridColumnSpan?: number | undefined;
+  gridRowAnchorIndex?: number | undefined;
+  gridRowCount?: number | undefined;
+  gridRowGap?: number | undefined;
+  gridRowSizes?: readonly FigmaGridTrackLike[] | undefined;
+  gridRowSpan?: number | undefined;
   height?: number | undefined;
   id: string;
   itemSpacing?: number | undefined;
@@ -119,6 +151,7 @@ export type FigmaNodeLike = {
     | "HEIGHT"
     | "TRUNCATE"
     | undefined;
+  textSegments?: readonly FigmaTextSegmentLike[] | undefined;
   textStyleRef?: string | undefined;
   topLeftRadius?: number | undefined;
   topRightRadius?: number | undefined;
@@ -133,6 +166,8 @@ export type FigmaNodeLike = {
 };
 
 export type BuildSelectionCaptureInput = {
+  componentContextByRef?: Record<string, Partial<ComponentPolicyContext>> | undefined;
+  componentPolicyRules?: readonly ComponentPolicyRule[] | undefined;
   page: {
     id: string;
     name: string;

@@ -38,6 +38,12 @@ export function buildSelectionCaptureFromRuntime(
 
   if (input.profile === "debug") {
     return buildSelectionCapture({
+      ...(input.componentContextByRef
+        ? { componentContextByRef: input.componentContextByRef }
+        : {}),
+      ...(input.componentPolicyRules
+        ? { componentPolicyRules: input.componentPolicyRules }
+        : {}),
       page: input.page,
       pluginVersion: input.pluginVersion,
       profile: "debug",
@@ -49,6 +55,12 @@ export function buildSelectionCaptureFromRuntime(
   }
 
   return buildSelectionCapture({
+    ...(input.componentContextByRef
+      ? { componentContextByRef: input.componentContextByRef }
+      : {}),
+    ...(input.componentPolicyRules
+      ? { componentPolicyRules: input.componentPolicyRules }
+      : {}),
     page: input.page,
     pluginVersion: input.pluginVersion,
     registries: collector.registries,
@@ -86,6 +98,12 @@ export async function buildSelectionCaptureFromRuntimeAsync(
   }
 
   return buildSelectionCaptureFromRuntime({
+    ...(input.componentContextByRef
+      ? { componentContextByRef: input.componentContextByRef }
+      : {}),
+    ...(input.componentPolicyRules
+      ? { componentPolicyRules: input.componentPolicyRules }
+      : {}),
     page: input.page,
     pluginApi: runtimeInput.pluginApi,
     pluginVersion: input.pluginVersion,

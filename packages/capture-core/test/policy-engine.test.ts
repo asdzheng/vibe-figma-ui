@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { createDesignDocument, resolveComponentPolicy } from "@vibe-figma/capture-core";
+import {
+  createDesignDocument,
+  defaultComponentPolicyRules,
+  resolveComponentPolicy
+} from "@vibe-figma/capture-core";
 import {
   loadCaptureFixtureDocument,
   loadSamplePolicyRules
@@ -12,6 +16,10 @@ import {
 } from "@vibe-figma/schema";
 
 describe("component policy resolution", () => {
+  test("keeps the shipped default rules aligned with the checked-in sample fixture", async () => {
+    await expect(loadSamplePolicyRules()).resolves.toEqual(defaultComponentPolicyRules);
+  });
+
   test("defaults to preserve when no rules match", () => {
     expect(
       resolveComponentPolicy(
@@ -36,6 +44,23 @@ describe("component policy resolution", () => {
       )
     ).toEqual({
       matchedRuleId: "icon-library",
+      policy: "icon"
+    });
+  });
+
+  test("matches icon component-set rules when runtime context has no library name", async () => {
+    const rules = await loadSamplePolicyRules();
+
+    expect(
+      resolveComponentPolicy(
+        {
+          componentName: "Icon/Search",
+          componentSetName: "Icons"
+        },
+        rules
+      )
+    ).toEqual({
+      matchedRuleId: "icon-component-set",
       policy: "icon"
     });
   });

@@ -28,7 +28,7 @@ describe("CLI companion server", () => {
 
     companionServer = await startCompanionHttpServer({
       port: 0,
-      version: "0.8.0"
+      version: "0.9.0"
     });
 
     const client = createFetchCompanionClient({
@@ -38,7 +38,7 @@ describe("CLI companion server", () => {
       `${companionServer.baseUrl}/plugin/sessions`,
       {
         body: JSON.stringify({
-          pluginVersion: "0.8.0"
+          pluginVersion: "0.9.0"
         }),
         headers: {
           "content-type": "application/json"
@@ -60,7 +60,7 @@ describe("CLI companion server", () => {
                 id: "1:2",
                 name: "Checkout"
               },
-              pluginVersion: "0.8.0",
+              pluginVersion: "0.9.0",
               selectionCount: 1,
               selectionNodes: [
                 {
@@ -119,7 +119,7 @@ describe("CLI companion server", () => {
                 id: "1:2",
                 name: "Checkout"
               },
-              pluginVersion: "0.8.0",
+              pluginVersion: "0.9.0",
               selectionCount: 2,
               selectionNodes: [
                 {
@@ -194,7 +194,7 @@ describe("CLI companion server", () => {
   test("collects plugin and companion logs for doctor-style inspection", async () => {
     companionServer = await startCompanionHttpServer({
       port: 0,
-      version: "0.8.0"
+      version: "0.9.0"
     });
 
     const client = createFetchCompanionClient({
@@ -204,7 +204,7 @@ describe("CLI companion server", () => {
       `${companionServer.baseUrl}/plugin/sessions`,
       {
         body: JSON.stringify({
-          pluginVersion: "0.8.0"
+          pluginVersion: "0.9.0"
         }),
         headers: {
           "content-type": "application/json"
@@ -259,5 +259,138 @@ describe("CLI companion server", () => {
         }
       ]
     });
+  });
+
+  test("queues debug capture requests with the requested profile", async () => {
+    const document = await loadSampleCaptureDocument();
+
+    companionServer = await startCompanionHttpServer({
+      port: 0,
+      version: "0.9.0"
+    });
+
+    const client = createFetchCompanionClient({
+      baseUrl: companionServer.baseUrl
+    });
+    const registerResponse = await fetch(
+      `${companionServer.baseUrl}/plugin/sessions`,
+      {
+        body: JSON.stringify({
+          pluginVersion: "0.9.0"
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+    const { sessionId } = sessionRegistrationResponseSchema.parse(
+      (await registerResponse.json()) as unknown
+    );
+
+    const capturePoll = fetch(
+      `${companionServer.baseUrl}${getCompanionSessionCommandsPath(sessionId)}?waitMs=100`
+    ).then(async (response) =>
+      sessionCommandPollResponseSchema.parse((await response.json()) as unknown)
+    );
+    const captureRequest = client.requestCapture({
+      profile: "debug",
+      sessionId
+    });
+    const captureCommand = await capturePoll;
+
+    expect(captureCommand.command).toMatchObject({
+      id: expect.any(String),
+      method: "capture",
+      profile: "debug"
+    });
+
+    await fetch(
+      `${companionServer.baseUrl}${getCompanionSessionEventsPath(sessionId)}`,
+      {
+        body: JSON.stringify({
+          payload: {
+            commandId: captureCommand.command?.id,
+            document,
+            method: "capture"
+          },
+          type: "command:result"
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+
+    await expect(captureRequest).resolves.toMatchObject({
+      document: {
+        schemaVersion: "0.1"
+      },
+      sessionId
+    });
+  });
+
+  test("surfaces plugin command failures back through the companion client", async () => {
+    companionServer = await startCompanionHttpServer({
+      port: 0,
+      version: "0.9.0"
+    });
+
+    const client = createFetchCompanionClient({
+      baseUrl: companionServer.baseUrl
+    });
+    const registerResponse = await fetch(
+      `${companionServer.baseUrl}/plugin/sessions`,
+      {
+        body: JSON.stringify({
+          pluginVersion: "0.9.0"
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+    const { sessionId } = sessionRegistrationResponseSchema.parse(
+      (await registerResponse.json()) as unknown
+    );
+
+    const capturePoll = fetch(
+      `${companionServer.baseUrl}${getCompanionSessionCommandsPath(sessionId)}?waitMs=100`
+    ).then(async (response) =>
+      sessionCommandPollResponseSchema.parse((await response.json()) as unknown)
+    );
+    const captureRequest = client.requestCapture({ sessionId });
+    const captureCommand = await capturePoll;
+
+    await fetch(
+      `${companionServer.baseUrl}${getCompanionSessionEventsPath(sessionId)}`,
+      {
+        body: JSON.stringify({
+          payload: {
+            commandId: captureCommand.command?.id,
+            details: {
+              recoverable: true,
+              scope: "plugin-worker",
+              selectionCount: 0,
+              suggestion:
+                "Select at least one frame, group, or component in Figma and retry."
+            },
+            error: "Capture failed in plugin worker.",
+            method: "capture"
+          },
+          type: "command:result"
+        }),
+        headers: {
+          "content-type": "application/json"
+        },
+        method: "POST"
+      }
+    );
+
+    await expect(captureRequest).rejects.toThrow(
+      "Capture failed in plugin worker. Select at least one frame, group, or component in Figma and retry."
+    );
   });
 });

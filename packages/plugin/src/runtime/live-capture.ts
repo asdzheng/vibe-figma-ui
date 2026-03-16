@@ -6,6 +6,7 @@ import type {
   RuntimeComponentPropertyDefinitions,
   RuntimeComponentSetNode,
   RuntimeEffect,
+  RuntimeGridTrack,
   RuntimePaint,
   RuntimePluginApi,
   RuntimeSceneNode,
@@ -28,6 +29,16 @@ type AsyncRuntimePluginApi = RuntimePluginApi & {
 type RuntimeSelectionNode = RuntimeSceneNode & {
   children?: readonly RuntimeSelectionNode[];
   getMainComponentAsync?: (() => Promise<ComponentNode | null>) | undefined;
+  getStyledTextSegments?: ((
+    fields: readonly ["fills", "textStyleId", "fillStyleId"]
+  ) => Array<{
+    characters: string;
+    end: number;
+    fillStyleId?: string | symbol;
+    fills?: readonly RuntimePaint[];
+    start: number;
+    textStyleId?: string | symbol;
+  }>) | undefined;
 };
 
 type ComponentBoundVariablesInput =
@@ -124,6 +135,38 @@ function isRuntimePaintArray(
   value: RuntimeSceneNode["fills"] | RuntimeSceneNode["strokes"] | RuntimeStyle["paints"]
 ): value is readonly RuntimePaint[] {
   return Array.isArray(value);
+}
+
+function toOptionalFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function toOptionalFiniteInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) ? value : undefined;
+}
+
+function toOptionalNonNegativeInteger(value: unknown): number | undefined {
+  const integer = toOptionalFiniteInteger(value);
+
+  return integer !== undefined && integer >= 0 ? integer : undefined;
+}
+
+function toOptionalNullableFiniteInteger(value: unknown): number | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  return toOptionalFiniteInteger(value);
+}
+
+function toOptionalPositiveInteger(value: unknown): number | undefined {
+  const integer = toOptionalFiniteInteger(value);
+
+  return integer !== undefined && integer > 0 ? integer : undefined;
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function serializeRuntimeStyle(style: BaseStyle): RuntimeStyle {
@@ -514,16 +557,80 @@ async function serializeComponentProperties(
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
+function serializeGridTracks(
+  tracks: readonly RuntimeGridTrack[] | undefined
+): readonly RuntimeGridTrack[] | undefined {
+  if (!tracks || tracks.length === 0) {
+    return undefined;
+  }
+
+  return tracks.map((track): RuntimeGridTrack => {
+    const value = toOptionalFiniteNumber(track.value);
+
+    if (value === undefined) {
+      return { type: track.type };
+    }
+
+    return {
+      type: track.type,
+      value
+    };
+  });
+}
+
+async function serializeTextSegments(
+  node: RuntimeSelectionNode,
+  context: RuntimeCaptureLookupContext
+): Promise<RuntimeSceneNode["textSegments"] | undefined> {
+  if (node.type !== "TEXT" || typeof node.getStyledTextSegments !== "function") {
+    return undefined;
+  }
+
+  const segments = node.getStyledTextSegments(["fills", "textStyleId", "fillStyleId"]);
+
+  if (!Array.isArray(segments) || segments.length <= 1) {
+    return undefined;
+  }
+
+  await Promise.all(
+    segments.flatMap((segment) => [
+      context.resolveStyle(
+        typeof segment.textStyleId === "string" ? segment.textStyleId : undefined
+      ),
+      context.resolveStyle(
+        typeof segment.fillStyleId === "string" ? segment.fillStyleId : undefined
+      ),
+      context.resolvePaints(segment.fills)
+    ])
+  );
+
+  return segments.map((segment) => ({
+    characters: segment.characters,
+    end: segment.end,
+    ...(typeof segment.fillStyleId === "string"
+      ? { fillStyleId: segment.fillStyleId }
+      : {}),
+    ...(segment.fills ? { fills: segment.fills } : {}),
+    start: segment.start,
+    ...(typeof segment.textStyleId === "string"
+      ? { textStyleId: segment.textStyleId }
+      : {})
+  }));
+}
+
 async function serializeRuntimeNode(
   node: RuntimeSelectionNode,
   context: RuntimeCaptureLookupContext
 ): Promise<RuntimeSceneNode> {
-  await context.resolveStyle(node.effectStyleId);
-  await context.resolveStyle(node.fillStyleId);
-  await context.resolveStyle(
-    typeof node.textStyleId === "string" ? node.textStyleId : undefined
-  );
-  await context.resolveStyle(node.strokeStyleId);
+  const effectStyleId = toOptionalString(node.effectStyleId);
+  const fillStyleId = toOptionalString(node.fillStyleId);
+  const textStyleId = toOptionalString(node.textStyleId);
+  const strokeStyleId = toOptionalString(node.strokeStyleId);
+
+  await context.resolveStyle(effectStyleId);
+  await context.resolveStyle(fillStyleId);
+  await context.resolveStyle(textStyleId);
+  await context.resolveStyle(strokeStyleId);
   await context.resolveNodeBoundVariables(node.boundVariables);
   await context.resolvePaints(node.fills);
   await context.resolvePaints(node.strokes);
@@ -538,19 +645,46 @@ async function serializeRuntimeNode(
     node.componentProperties,
     context
   );
+  const gridColumnSizes = serializeGridTracks(node.gridColumnSizes);
+  const gridRowSizes = serializeGridTracks(node.gridRowSizes);
+  const textSegments = await serializeTextSegments(node, context);
   const mainComponent =
     node.type === "INSTANCE"
       ? await resolveMainComponent(node, context)
       : node.mainComponent;
+  const bottomLeftRadius = toOptionalFiniteNumber(node.bottomLeftRadius);
+  const bottomRightRadius = toOptionalFiniteNumber(node.bottomRightRadius);
+  const cornerRadius = toOptionalFiniteNumber(node.cornerRadius);
+  const gridColumnAnchorIndex = toOptionalNonNegativeInteger(
+    node.gridColumnAnchorIndex
+  );
+  const gridColumnCount = toOptionalPositiveInteger(node.gridColumnCount);
+  const gridColumnGap = toOptionalFiniteNumber(node.gridColumnGap);
+  const gridColumnSpan = toOptionalPositiveInteger(node.gridColumnSpan);
+  const gridRowAnchorIndex = toOptionalNonNegativeInteger(node.gridRowAnchorIndex);
+  const gridRowCount = toOptionalPositiveInteger(node.gridRowCount);
+  const gridRowGap = toOptionalFiniteNumber(node.gridRowGap);
+  const gridRowSpan = toOptionalPositiveInteger(node.gridRowSpan);
+  const height = toOptionalFiniteNumber(node.height);
+  const itemSpacing = toOptionalFiniteNumber(node.itemSpacing);
+  const maxLines = toOptionalNullableFiniteInteger(node.maxLines);
+  const opacity = toOptionalFiniteNumber(node.opacity);
+  const paddingBottom = toOptionalFiniteNumber(node.paddingBottom);
+  const paddingLeft = toOptionalFiniteNumber(node.paddingLeft);
+  const paddingRight = toOptionalFiniteNumber(node.paddingRight);
+  const paddingTop = toOptionalFiniteNumber(node.paddingTop);
+  const rotation = toOptionalFiniteNumber(node.rotation);
+  const strokeWeight = toOptionalFiniteNumber(node.strokeWeight);
+  const topLeftRadius = toOptionalFiniteNumber(node.topLeftRadius);
+  const topRightRadius = toOptionalFiniteNumber(node.topRightRadius);
+  const width = toOptionalFiniteNumber(node.width);
+  const x = toOptionalFiniteNumber(node.x);
+  const y = toOptionalFiniteNumber(node.y);
 
   return {
     ...(node.boundVariables ? { boundVariables: node.boundVariables } : {}),
-    ...(node.bottomLeftRadius !== undefined
-      ? { bottomLeftRadius: node.bottomLeftRadius }
-      : {}),
-    ...(node.bottomRightRadius !== undefined
-      ? { bottomRightRadius: node.bottomRightRadius }
-      : {}),
+    ...(bottomLeftRadius !== undefined ? { bottomLeftRadius } : {}),
+    ...(bottomRightRadius !== undefined ? { bottomRightRadius } : {}),
     ...(node.characters !== undefined ? { characters: node.characters } : {}),
     ...(children?.length ? { children } : {}),
     ...(node.clipsContent !== undefined ? { clipsContent: node.clipsContent } : {}),
@@ -559,17 +693,33 @@ async function serializeRuntimeNode(
       ? { componentPropertyReferences: node.componentPropertyReferences }
       : {}),
     ...(node.constraints ? { constraints: node.constraints } : {}),
-    ...(node.cornerRadius !== undefined ? { cornerRadius: node.cornerRadius } : {}),
+    ...(cornerRadius !== undefined ? { cornerRadius } : {}),
     ...(node.counterAxisAlignItems
       ? { counterAxisAlignItems: node.counterAxisAlignItems }
       : {}),
-    ...(node.effectStyleId ? { effectStyleId: node.effectStyleId } : {}),
+    ...(effectStyleId ? { effectStyleId } : {}),
     ...(node.effects ? { effects: node.effects } : {}),
-    ...(node.fillStyleId ? { fillStyleId: node.fillStyleId } : {}),
+    ...(fillStyleId ? { fillStyleId } : {}),
     ...(node.fills !== undefined ? { fills: node.fills } : {}),
-    ...(node.height !== undefined ? { height: node.height } : {}),
+    ...(node.gridChildHorizontalAlign
+      ? { gridChildHorizontalAlign: node.gridChildHorizontalAlign }
+      : {}),
+    ...(node.gridChildVerticalAlign
+      ? { gridChildVerticalAlign: node.gridChildVerticalAlign }
+      : {}),
+    ...(gridColumnAnchorIndex !== undefined ? { gridColumnAnchorIndex } : {}),
+    ...(gridColumnCount !== undefined ? { gridColumnCount } : {}),
+    ...(gridColumnGap !== undefined ? { gridColumnGap } : {}),
+    ...(gridColumnSizes ? { gridColumnSizes } : {}),
+    ...(gridColumnSpan !== undefined ? { gridColumnSpan } : {}),
+    ...(gridRowAnchorIndex !== undefined ? { gridRowAnchorIndex } : {}),
+    ...(gridRowCount !== undefined ? { gridRowCount } : {}),
+    ...(gridRowGap !== undefined ? { gridRowGap } : {}),
+    ...(gridRowSizes ? { gridRowSizes } : {}),
+    ...(gridRowSpan !== undefined ? { gridRowSpan } : {}),
+    ...(height !== undefined ? { height } : {}),
     id: node.id,
-    ...(node.itemSpacing !== undefined ? { itemSpacing: node.itemSpacing } : {}),
+    ...(itemSpacing !== undefined ? { itemSpacing } : {}),
     ...(node.layoutMode ? { layoutMode: node.layoutMode } : {}),
     ...(node.layoutPositioning
       ? { layoutPositioning: node.layoutPositioning }
@@ -583,38 +733,39 @@ async function serializeRuntimeNode(
     ...(node.layoutWrap ? { layoutWrap: node.layoutWrap } : {}),
     ...(node.locked !== undefined ? { locked: node.locked } : {}),
     ...(mainComponent ? { mainComponent } : {}),
-    ...(node.maxLines !== undefined ? { maxLines: node.maxLines } : {}),
+    ...(maxLines !== undefined ? { maxLines } : {}),
     name: node.name,
-    ...(node.opacity !== undefined ? { opacity: node.opacity } : {}),
-    ...(node.paddingBottom !== undefined ? { paddingBottom: node.paddingBottom } : {}),
-    ...(node.paddingLeft !== undefined ? { paddingLeft: node.paddingLeft } : {}),
-    ...(node.paddingRight !== undefined ? { paddingRight: node.paddingRight } : {}),
-    ...(node.paddingTop !== undefined ? { paddingTop: node.paddingTop } : {}),
+    ...(opacity !== undefined ? { opacity } : {}),
+    ...(paddingBottom !== undefined ? { paddingBottom } : {}),
+    ...(paddingLeft !== undefined ? { paddingLeft } : {}),
+    ...(paddingRight !== undefined ? { paddingRight } : {}),
+    ...(paddingTop !== undefined ? { paddingTop } : {}),
     ...(node.primaryAxisAlignItems
       ? { primaryAxisAlignItems: node.primaryAxisAlignItems }
       : {}),
     ...(node.resolvedVariableModes
       ? { resolvedVariableModes: node.resolvedVariableModes }
       : {}),
-    ...(node.rotation !== undefined ? { rotation: node.rotation } : {}),
+    ...(rotation !== undefined ? { rotation } : {}),
     ...(node.strokeAlign ? { strokeAlign: node.strokeAlign } : {}),
-    ...(node.strokeStyleId ? { strokeStyleId: node.strokeStyleId } : {}),
-    ...(node.strokeWeight !== undefined ? { strokeWeight: node.strokeWeight } : {}),
+    ...(strokeStyleId ? { strokeStyleId } : {}),
+    ...(strokeWeight !== undefined ? { strokeWeight } : {}),
     ...(node.strokes !== undefined ? { strokes: node.strokes } : {}),
     ...(node.textAlignHorizontal
       ? { textAlignHorizontal: node.textAlignHorizontal }
       : {}),
     ...(node.textAlignVertical ? { textAlignVertical: node.textAlignVertical } : {}),
     ...(node.textAutoResize ? { textAutoResize: node.textAutoResize } : {}),
-    ...(node.textStyleId !== undefined ? { textStyleId: node.textStyleId } : {}),
-    ...(node.topLeftRadius !== undefined ? { topLeftRadius: node.topLeftRadius } : {}),
-    ...(node.topRightRadius !== undefined ? { topRightRadius: node.topRightRadius } : {}),
+    ...(textSegments ? { textSegments } : {}),
+    ...(textStyleId ? { textStyleId } : {}),
+    ...(topLeftRadius !== undefined ? { topLeftRadius } : {}),
+    ...(topRightRadius !== undefined ? { topRightRadius } : {}),
     type: node.type,
     ...(node.variantProperties ? { variantProperties: node.variantProperties } : {}),
     ...(node.visible !== undefined ? { visible: node.visible } : {}),
-    ...(node.width !== undefined ? { width: node.width } : {}),
-    ...(node.x !== undefined ? { x: node.x } : {}),
-    ...(node.y !== undefined ? { y: node.y } : {})
+    ...(width !== undefined ? { width } : {}),
+    ...(x !== undefined ? { x } : {}),
+    ...(y !== undefined ? { y } : {})
   };
 }
 

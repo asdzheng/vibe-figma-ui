@@ -2,27 +2,35 @@
 
 ## Active Track
 
-The current track is post-compaction cleanup on top of the CLI-first V2 runtime migration.
+The current track is closing out the V3 shorthand release now that the next canonical compaction pass is implemented and the automated suite is green.
 
 ## Current Focus
 
-- Keep the default canonical path small and representative now that the latest checked-in manual samples are in the `386-417` line range.
-- Refresh regression fixtures and docs so tracked budgets match the current output instead of the older `1,562`-line baseline.
-- Decide whether `debug` should stay internal or become an explicit CLI-visible export profile.
-- Keep the active architecture boundaries clean:
-  - `plugin` is the Figma-side runtime endpoint
-  - `cli` is the host-side control surface and local companion
-  - `capture-core` and `schema` remain the product core
+- The live runtime closeout is now complete:
+  - live runtime policy injection is wired in
+  - the representative canonical size regression uses the current manual sample
+  - `lint`, `typecheck`, `test`, and `build` are green
+  - real desktop verification now covers `status`, `sessions`, `capture`, `export-json`, SVG/HTML snapshot output, and `test:e2e:figma`
+- The next V3-size pass is now in code:
+  - simple `component`, `text`, and literal visual values emit shorthand forms
+  - duplicate text `fill` output is removed in favor of `textColor`
+  - generic wrapper names are pruned on selected non-root nodes
+  - the smaller representative fixture is now `359-392` lines
+  - the larger checked optimization fixture is now `1,182` lines / `37,186` pretty bytes / `11,072` minified bytes
+- The remaining closeout work is release-oriented:
+  - make sure the live companion process is restarted on the new transport/schema build before the next desktop rerun
+  - publish the V3 shorthand pass as the next tagged release
 
 ## Next Concrete Tasks
 
-1. Replace the stale canonical-size baseline in `progress/`, tests, and supporting notes with a current representative fixture that reflects the checked-in `386-417` line outputs.
-2. Decide whether to expose CLI profile selection for `debug`, or explicitly document that `debug` remains an internal API-only path.
-3. Re-run live Figma verification for plugin launch, reconnect, capture, smoke-loop behavior, and SVG snapshot output.
-4. Continue runtime extraction and policy-injection work where the live runtime still lags behind the policy engine and fixture coverage.
+1. Restart the companion process on the current build, then rerun one live desktop `export-json` check so the new shorthand transport shape is verified end to end.
+2. Publish the current V3 shorthand pass as the next release once the final release checks are green.
+3. After release, decide whether the next follow-up should target larger page-level compaction or reconnect-safe in-flight capture handoff.
 
 ## Exit Criteria
 
-- The checked-in representative canonical samples remain in the current `386-417` line range and stay materially below the older `1,562`-line budget still referenced by legacy notes.
+- The checked-in representative canonical samples remain in the current `359-392` line range and stay materially below the older `1,562`-line budget still referenced by legacy notes.
+- The live runtime applies component policy decisions instead of always preserving instances by default.
 - `lint`, `typecheck`, `test`, and `build` are green on the active packages.
-- Manual Figma verification still confirms plugin launch, status, capture, reconnect, smoke-loop behavior, and SVG snapshot output after the schema rewrite.
+- Manual Figma verification remains green on the current release build after the companion is restarted onto the new transport/schema output.
+- Larger live exports such as `artifacts/manual/p0-live-capture.json` become materially smaller without regressing the smaller representative fixture or breaking the smoke loop.

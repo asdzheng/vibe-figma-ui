@@ -275,23 +275,35 @@ Rules:
 ## Component Usage Model
 
 ```ts
-type ComponentUse = {
-  name: string
-  variant?: Record<string, string | boolean>
-  props?: Record<string, string | boolean>
-  library?: string
-  status?: "mapped" | "unmapped"
-}
+type ComponentUse =
+  | string
+  | {
+      name: string
+      variant?: Record<string, string | boolean>
+      props?: Record<string, string | boolean>
+      library?: string
+      status?: "mapped" | "unmapped"
+    }
 ```
 
 Rules:
 
 - inline component usage directly on the node
+- allow the bare string form when only the component name is needed
 - do not reference a top-level component registry from canonical
 - preserve only the variant and prop values actually used by the page
 - do not include full component authoring catalogs
 
 Example:
+
+```json
+{
+  "kind": "instance",
+  "component": "Carousel"
+}
+```
+
+Expanded form when variants or props are needed:
 
 ```json
 {
@@ -323,16 +335,18 @@ type StyleIntent = {
 }
 
 type TokenOrValue =
+  | string
   | { token: string }
-  | { value: string }
   | { image: string }
 ```
 
 Rules:
 
 - choose one source of truth in canonical: token or final literal value
+- allow bare string literals for the common final-value case
 - never emit both `token` and `fallback` for the same visual fact
 - keep `textStyle` as a readable style name, not a style ref id
+- do not emit both `fill` and `textColor` on text nodes for the same color
 - omit `radius` when it is zero
 - omit `opacity` when it is one
 
@@ -368,9 +382,7 @@ Fallback when no semantic token exists:
 ```json
 {
   "style": {
-    "textColor": {
-      "value": "#1d1b20ff"
-    }
+    "textColor": "#1d1b20ff"
   }
 }
 ```
@@ -456,16 +468,19 @@ This is a deliberate shift away from box-dump capture.
 ## Text Model
 
 ```ts
-type TextIntent = {
-  value: string
-  role?: string
-  lines?: number
-}
+type TextIntent =
+  | string
+  | {
+      value: string
+      role?: string
+      lines?: number
+    }
 ```
 
 Rules:
 
 - default text is a single plain string
+- use the object form only when extra metadata such as `lines` is needed
 - rich text runs belong in `debug` unless mixed styling is essential to render correctly
 - do not emit large text-segment arrays for simple nodes
 
@@ -531,4 +546,3 @@ Stop/go rule:
 3. Keep current v0.1-like output only as `debug` during migration.
 4. Rewrite capture-core so default node emission is semantic-first and registry-free.
 5. Add hard size-budget tests using the current live `Examples/Upcoming-Mobile` capture.
-

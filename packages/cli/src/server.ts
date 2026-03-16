@@ -128,7 +128,20 @@ async function toErrorMessage(response: Response): Promise<string> {
       "error" in payload &&
       typeof payload.error === "string"
     ) {
-      return payload.error;
+      const details =
+        "details" in payload &&
+        typeof payload.details === "object" &&
+        payload.details !== null
+          ? payload.details
+          : undefined;
+      const suggestion =
+        details &&
+        "suggestion" in details &&
+        typeof details.suggestion === "string"
+          ? details.suggestion
+          : undefined;
+
+      return suggestion ? `${payload.error} ${suggestion}` : payload.error;
     }
   } catch {
     return `Companion request failed with ${response.status}.`;
@@ -263,11 +276,15 @@ export async function startCompanionHttpServer(
         );
         const { result, sessionId } = await manager.dispatchCommand(
           method,
-          payload.sessionId
+          payload.sessionId,
+          payload.profile
         );
 
         if ("error" in result) {
-          sendJson(response, 409, { error: result.error });
+          sendJson(response, 409, {
+            ...(result.details ? { details: result.details } : {}),
+            error: result.error
+          });
           return;
         }
 
@@ -316,15 +333,17 @@ export async function startCompanionHttpServer(
     baseUrl,
     close: async () =>
       new Promise<void>((resolve, reject) => {
-        manager.dispose();
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
+        void manager.flushPersistence().then(() => {
+          manager.dispose();
+          server.close((error) => {
+            if (error) {
+              reject(error);
+              return;
+            }
 
-          resolve();
-        });
+            resolve();
+          });
+        }, reject);
       }),
     manager,
     server

@@ -3,8 +3,10 @@ import type {
   FigmaComponentPropertyDefinitionLike,
   FigmaComponentPropertyLike,
   FigmaEffectLike,
+  FigmaGridTrackLike,
   FigmaNodeLike,
-  FigmaPaintLike
+  FigmaPaintLike,
+  FigmaTextSegmentLike
 } from "../model.js";
 import type { RuntimeRegistryCollector } from "./registry-collector.js";
 import type {
@@ -63,6 +65,38 @@ function buildPaintExtractionOptions(
     ...(styleId ? { styleId } : {}),
     ...(variableAliases ? { variableAliases } : {})
   };
+}
+
+function toOptionalFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function toOptionalFiniteInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) ? value : undefined;
+}
+
+function toOptionalNonNegativeInteger(value: unknown): number | undefined {
+  const integer = toOptionalFiniteInteger(value);
+
+  return integer !== undefined && integer >= 0 ? integer : undefined;
+}
+
+function toOptionalNullableFiniteInteger(value: unknown): number | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  return toOptionalFiniteInteger(value);
+}
+
+function toOptionalPositiveInteger(value: unknown): number | undefined {
+  const integer = toOptionalFiniteInteger(value);
+
+  return integer !== undefined && integer > 0 ? integer : undefined;
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function isComponentSetParent(
@@ -315,16 +349,23 @@ function extractTextContent(
   | "textAlignHorizontal"
   | "textAlignVertical"
   | "textAutoResize"
+  | "textSegments"
   | "textStyleRef"
 > {
   const textStyleRef =
     typeof node.textStyleId === "string"
       ? collector.registerStyle(node.textStyleId)
       : undefined;
+  const textSegments = node.textSegments
+    ?.map((segment) => extractTextSegment(segment, collector))
+    .filter((segment): segment is FigmaTextSegmentLike => segment !== undefined);
 
   return {
     ...(node.characters !== undefined ? { characters: node.characters } : {}),
-    ...(node.maxLines !== undefined ? { maxLines: node.maxLines } : {}),
+    ...(toOptionalNullableFiniteInteger(node.maxLines) !== undefined
+      ? { maxLines: toOptionalNullableFiniteInteger(node.maxLines) }
+      : {}),
+    ...(textSegments && textSegments.length > 0 ? { textSegments } : {}),
     ...(node.textAlignHorizontal
       ? { textAlignHorizontal: node.textAlignHorizontal }
       : {}),
@@ -334,19 +375,60 @@ function extractTextContent(
   };
 }
 
+function mapGridTrack(
+  track: NonNullable<RuntimeSceneNode["gridColumnSizes"]>[number]
+): FigmaGridTrackLike {
+  return {
+    type: track.type,
+    ...(toOptionalFiniteNumber(track.value) !== undefined
+      ? { value: toOptionalFiniteNumber(track.value) }
+      : {})
+  };
+}
+
+function extractTextSegment(
+  segment: NonNullable<RuntimeSceneNode["textSegments"]>[number],
+  collector: RuntimeRegistryCollector
+): FigmaTextSegmentLike | undefined {
+  const fill = extractPaints(
+    segment.fills,
+    collector,
+    buildPaintExtractionOptions(segment.fillStyleId, undefined)
+  );
+  const textStyleRef =
+    typeof segment.textStyleId === "string"
+      ? collector.registerStyle(segment.textStyleId)
+      : undefined;
+
+  if (!fill && !textStyleRef) {
+    return undefined;
+  }
+
+  return {
+    characters: segment.characters,
+    end: segment.end,
+    ...(fill ? { fill } : {}),
+    start: segment.start,
+    ...(textStyleRef ? { textStyleRef } : {})
+  };
+}
+
 export function extractNodeFromRuntime(
   node: RuntimeSceneNode,
   collector: RuntimeRegistryCollector
 ): FigmaNodeLike {
+  const effectStyleId = toOptionalString(node.effectStyleId);
+  const fillStyleId = toOptionalString(node.fillStyleId);
+  const strokeStyleId = toOptionalString(node.strokeStyleId);
   const fills = extractPaints(
     node.fills,
     collector,
-    buildPaintExtractionOptions(node.fillStyleId, node.boundVariables?.fills)
+    buildPaintExtractionOptions(fillStyleId, node.boundVariables?.fills)
   );
   const strokes = extractPaints(
     node.strokes,
     collector,
-    buildPaintExtractionOptions(node.strokeStyleId, node.boundVariables?.strokes)
+    buildPaintExtractionOptions(strokeStyleId, node.boundVariables?.strokes)
   );
   const effects = extractEffects(node, collector);
   const children = node.children?.map((child) =>
@@ -360,19 +442,46 @@ export function extractNodeFromRuntime(
         ])
       )
     : undefined;
-  const effectStyleRef = node.effectStyleId
-    ? collector.registerStyle(node.effectStyleId)
+  const effectStyleRef = effectStyleId
+    ? collector.registerStyle(effectStyleId)
     : undefined;
-  const fillStyleRef = node.fillStyleId
-    ? collector.registerStyle(node.fillStyleId)
+  const fillStyleRef = fillStyleId
+    ? collector.registerStyle(fillStyleId)
     : undefined;
   const mainComponent = node.mainComponent
     ? extractMainComponent(node.mainComponent, collector)
     : undefined;
-  const strokeStyleRef = node.strokeStyleId
-    ? collector.registerStyle(node.strokeStyleId)
+  const strokeStyleRef = strokeStyleId
+    ? collector.registerStyle(strokeStyleId)
     : undefined;
   const variantProperties = extractVariantProperties(node);
+  const bottomLeftRadius = toOptionalFiniteNumber(node.bottomLeftRadius);
+  const bottomRightRadius = toOptionalFiniteNumber(node.bottomRightRadius);
+  const cornerRadius = toOptionalFiniteNumber(node.cornerRadius);
+  const gridColumnAnchorIndex = toOptionalNonNegativeInteger(
+    node.gridColumnAnchorIndex
+  );
+  const gridColumnCount = toOptionalPositiveInteger(node.gridColumnCount);
+  const gridColumnGap = toOptionalFiniteNumber(node.gridColumnGap);
+  const gridColumnSpan = toOptionalPositiveInteger(node.gridColumnSpan);
+  const gridRowAnchorIndex = toOptionalNonNegativeInteger(node.gridRowAnchorIndex);
+  const gridRowCount = toOptionalPositiveInteger(node.gridRowCount);
+  const gridRowGap = toOptionalFiniteNumber(node.gridRowGap);
+  const gridRowSpan = toOptionalPositiveInteger(node.gridRowSpan);
+  const height = toOptionalFiniteNumber(node.height);
+  const itemSpacing = toOptionalFiniteNumber(node.itemSpacing);
+  const opacity = toOptionalFiniteNumber(node.opacity);
+  const paddingBottom = toOptionalFiniteNumber(node.paddingBottom);
+  const paddingLeft = toOptionalFiniteNumber(node.paddingLeft);
+  const paddingRight = toOptionalFiniteNumber(node.paddingRight);
+  const paddingTop = toOptionalFiniteNumber(node.paddingTop);
+  const rotation = toOptionalFiniteNumber(node.rotation);
+  const strokeWeight = toOptionalFiniteNumber(node.strokeWeight);
+  const topLeftRadius = toOptionalFiniteNumber(node.topLeftRadius);
+  const topRightRadius = toOptionalFiniteNumber(node.topRightRadius);
+  const width = toOptionalFiniteNumber(node.width);
+  const x = toOptionalFiniteNumber(node.x);
+  const y = toOptionalFiniteNumber(node.y);
 
   return {
     ...(node.type === "TEXT" ? extractTextContent(node, collector) : {}),
@@ -383,7 +492,7 @@ export function extractNodeFromRuntime(
       ? { componentPropertyReferences: node.componentPropertyReferences }
       : {}),
     ...(node.constraints ? { constraints: node.constraints } : {}),
-    ...(node.cornerRadius !== undefined ? { cornerRadius: node.cornerRadius } : {}),
+    ...(cornerRadius !== undefined ? { cornerRadius } : {}),
     ...(node.counterAxisAlignItems
       ? { counterAxisAlignItems: node.counterAxisAlignItems }
       : {}),
@@ -391,9 +500,29 @@ export function extractNodeFromRuntime(
     ...(effects ? { effects } : {}),
     ...(fillStyleRef ? { fillStyleRef } : {}),
     ...(fills ? { fills } : {}),
-    ...(node.height !== undefined ? { height: node.height } : {}),
+    ...(node.gridChildHorizontalAlign
+      ? { gridChildHorizontalAlign: node.gridChildHorizontalAlign }
+      : {}),
+    ...(node.gridChildVerticalAlign
+      ? { gridChildVerticalAlign: node.gridChildVerticalAlign }
+      : {}),
+    ...(gridColumnAnchorIndex !== undefined ? { gridColumnAnchorIndex } : {}),
+    ...(gridColumnCount !== undefined ? { gridColumnCount } : {}),
+    ...(gridColumnGap !== undefined ? { gridColumnGap } : {}),
+    ...(node.gridColumnSizes?.length
+      ? { gridColumnSizes: node.gridColumnSizes.map((track) => mapGridTrack(track)) }
+      : {}),
+    ...(gridColumnSpan !== undefined ? { gridColumnSpan } : {}),
+    ...(gridRowAnchorIndex !== undefined ? { gridRowAnchorIndex } : {}),
+    ...(gridRowCount !== undefined ? { gridRowCount } : {}),
+    ...(gridRowGap !== undefined ? { gridRowGap } : {}),
+    ...(node.gridRowSizes?.length
+      ? { gridRowSizes: node.gridRowSizes.map((track) => mapGridTrack(track)) }
+      : {}),
+    ...(gridRowSpan !== undefined ? { gridRowSpan } : {}),
+    ...(height !== undefined ? { height } : {}),
     id: node.id,
-    ...(node.itemSpacing !== undefined ? { itemSpacing: node.itemSpacing } : {}),
+    ...(itemSpacing !== undefined ? { itemSpacing } : {}),
     ...(node.layoutMode ? { layoutMode: node.layoutMode } : {}),
     ...(node.layoutPositioning
       ? { layoutPositioning: node.layoutPositioning }
@@ -408,37 +537,31 @@ export function extractNodeFromRuntime(
     ...(node.locked !== undefined ? { locked: node.locked } : {}),
     ...(mainComponent ? { mainComponent } : {}),
     name: node.name,
-    ...(node.opacity !== undefined ? { opacity: node.opacity } : {}),
-    ...(node.paddingBottom !== undefined ? { paddingBottom: node.paddingBottom } : {}),
-    ...(node.paddingLeft !== undefined ? { paddingLeft: node.paddingLeft } : {}),
-    ...(node.paddingRight !== undefined ? { paddingRight: node.paddingRight } : {}),
-    ...(node.paddingTop !== undefined ? { paddingTop: node.paddingTop } : {}),
+    ...(opacity !== undefined ? { opacity } : {}),
+    ...(paddingBottom !== undefined ? { paddingBottom } : {}),
+    ...(paddingLeft !== undefined ? { paddingLeft } : {}),
+    ...(paddingRight !== undefined ? { paddingRight } : {}),
+    ...(paddingTop !== undefined ? { paddingTop } : {}),
     ...(node.primaryAxisAlignItems
       ? { primaryAxisAlignItems: node.primaryAxisAlignItems }
       : {}),
     ...(node.resolvedVariableModes
       ? { resolvedVariableModes: node.resolvedVariableModes }
       : {}),
-    ...(node.rotation !== undefined ? { rotation: node.rotation } : {}),
+    ...(rotation !== undefined ? { rotation } : {}),
     ...(node.strokeAlign ? { strokeAlign: node.strokeAlign } : {}),
     ...(strokeStyleRef ? { strokeStyleRef } : {}),
-    ...(node.strokeWeight !== undefined ? { strokeWeight: node.strokeWeight } : {}),
+    ...(strokeWeight !== undefined ? { strokeWeight } : {}),
     ...(strokes ? { strokes } : {}),
-    ...(node.topLeftRadius !== undefined ? { topLeftRadius: node.topLeftRadius } : {}),
-    ...(node.topRightRadius !== undefined
-      ? { topRightRadius: node.topRightRadius }
-      : {}),
-    ...(node.bottomRightRadius !== undefined
-      ? { bottomRightRadius: node.bottomRightRadius }
-      : {}),
-    ...(node.bottomLeftRadius !== undefined
-      ? { bottomLeftRadius: node.bottomLeftRadius }
-      : {}),
+    ...(topLeftRadius !== undefined ? { topLeftRadius } : {}),
+    ...(topRightRadius !== undefined ? { topRightRadius } : {}),
+    ...(bottomRightRadius !== undefined ? { bottomRightRadius } : {}),
+    ...(bottomLeftRadius !== undefined ? { bottomLeftRadius } : {}),
     type: node.type,
     ...(variantProperties ? { variantProperties } : {}),
     ...(node.visible !== undefined ? { visible: node.visible } : {}),
-    ...(node.width !== undefined ? { width: node.width } : {}),
-    ...(node.x !== undefined ? { x: node.x } : {}),
-    ...(node.y !== undefined ? { y: node.y } : {})
+    ...(width !== undefined ? { width } : {}),
+    ...(x !== undefined ? { x } : {}),
+    ...(y !== undefined ? { y } : {})
   };
 }

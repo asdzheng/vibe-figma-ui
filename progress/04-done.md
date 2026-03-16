@@ -1,13 +1,40 @@
 # Done
 
+## 2026-03-16
+
+- Landed the next V3 canonical compaction pass under schema `0.2` so simple component usage, plain text payloads, and literal visual values emit shorthand forms instead of repetitive wrapper objects.
+- Removed duplicate text `style.fill` output in canonical text nodes, keeping `style.textColor` as the single color fact for text content.
+- Dropped selected generic non-root wrapper names such as `Content` and `state-layer` from canonical output when they do not add semantic value.
+- Refreshed the checked representative artifacts under `artifacts/manual/`:
+  - `artifacts/manual/current-selection-v0.2.json`: `359` lines, `8,926` pretty bytes, `3,507` minified bytes.
+  - `artifacts/manual/current-selection-v0.2.live.json`: `392` lines, `10,173` pretty bytes, `4,100` minified bytes.
+  - `artifacts/manual/p0-live-capture.json`: `1,182` lines, `37,186` pretty bytes, `11,072` minified bytes.
+- Tightened the small representative regression budget to `<=370` lines / `<=9.25 KB` pretty / `<=3.6 KB` minified and added a larger regression budget at `<=1,200` lines / `<=38 KB` pretty / `<=11.5 KB` minified after converting `artifacts/manual/p0-live-capture.debug.json`.
+- Added schema and snapshot coverage for the new shorthand output forms so CLI reverse-rendering and schema validation both accept the smaller canonical representation.
+- Finished the previously pending real Figma desktop rerun on the rebuilt companion process and confirmed live `status`, `sessions`, `capture`, `export-json`, SVG snapshot output, HTML preview output, and `test:e2e:figma`.
+- Hardened the live runtime against real desktop-only mixed `Symbol` sentinels by filtering non-string style ids and non-finite numeric fields before async lookup and canonical shaping.
+- Hardened the live runtime against invalid grid sentinel values by dropping `0` and `-1` values that violate schema constraints for grid counts, spans, and child anchors.
+- Added targeted regression coverage for those desktop-only sentinel cases in `packages/plugin/test/runtime-capture.test.ts`.
+- Updated `scripts/figma-e2e-smoke.mjs` and `scripts/figma-e2e-smoke.test.mjs` so the smoke report accepts the current canonical `0.2` capture metadata shape and falls back to live status metadata when the capture document omits old debug-only fields.
+- Wrote fresh live verification artifacts under `artifacts/manual/p0-live-capture.json`, `artifacts/manual/p0-live-screenshot.svg`, `artifacts/manual/p0-live-preview.html`, and `artifacts/e2e/figma-smoke-report.json`.
+
 ## 2026-03-15
 
 - Re-checked the active workspace against the progress docs and confirmed the implementation still defaults to schema `0.2` canonical output in code.
-- Confirmed the latest checked-in representative canonical samples under `artifacts/manual/` are now far smaller than the older baseline:
-  - `artifacts/manual/current-selection-v0.2.json`: `386` lines, `9,511` pretty bytes, `3,653` minified bytes.
-  - `artifacts/manual/current-selection-v0.2.live.json`: `417` lines, `10,716` pretty bytes, `4,237` minified bytes.
-- Confirmed internal `debug` profile support now exists in `capture-core` and runtime capture code paths, while the CLI still exports only the canonical default profile.
+- Confirmed the earlier checked-in representative canonical samples under `artifacts/manual/` were already far smaller than the older baseline before the later V3 shorthand pass tightened them further.
+- Confirmed internal `debug` profile support exists in `capture-core` and runtime capture code paths and used that as the base for the later CLI profile exposure work.
 - Updated the progress tracking docs so current status, plan, in-progress work, and open issues reflect the codebase rather than the older `1,562`-line canonical baseline.
+- Exposed `--profile canonical|debug` through the CLI and validated the debug export path end-to-end.
+- Expanded runtime extraction and adapter coverage for vectors, boolean operations, layout grids, and mixed-text segment payloads.
+- Added reconnect and failure-handling coverage around companion session routing plus richer structured diagnostics for capture failures.
+- Added `vibe-figma sessions`, multi-session doctor guidance, optional persisted companion state via `VIBE_FIGMA_STATE_PATH`, and HTML preview output for `vibe-figma screenshot`.
+- Removed the active CLI/smoke support for `VIBE_FIGMA_BRIDGE_*` and `--bridge-url`, and explicitly archived `packages/ui-bridge` and `packages/mcp-server` as private V1 reference packages.
+- Verified the incremental P1 and P2 work with targeted Vitest runs plus `corepack pnpm typecheck`.
+- Added shared default component policy rules, wired them into the live runtime capture path, and refreshed the sample policy fixture so runtime-safe icon/component-set matches and helper inlining now flow through the real plugin path.
+- Replaced the old canonical regression fixture with `artifacts/manual/current-selection.json` and tightened the automated budget to `<=450` lines, `<=11 KB` pretty, and `<=4 KB` minified.
+- Fixed a real live-capture timeout mismatch found during desktop verification by moving the companion default command timeout to `60s` and making the plugin UI wait `65s`.
+- Re-ran the unrestricted full workspace checks and confirmed `corepack pnpm lint`, `corepack pnpm test`, `corepack pnpm typecheck`, and `corepack pnpm build` all pass.
+- Re-ran part of the real Figma desktop verification and confirmed live `status` and `sessions` against an active plugin session before restarting the companion to load the timeout fix.
 
 ## 2026-03-11
 

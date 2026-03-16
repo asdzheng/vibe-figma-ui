@@ -12,7 +12,7 @@ export const COMPANION_LOGS_PATH = "/logs";
 export const COMPANION_PLUGIN_SESSIONS_PATH = "/plugin/sessions";
 export const COMPANION_COMMANDS_PATH = "/commands";
 
-export const DEFAULT_COMMAND_TIMEOUT_MS = 15_000;
+export const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 export const DEFAULT_LOG_LIMIT = 50;
 export const DEFAULT_LONG_POLL_MS = 25_000;
 export const MAX_LOG_ENTRIES = 200;
@@ -68,6 +68,10 @@ export const runtimeStatusSchema = z
 
 export type RuntimeStatus = z.infer<typeof runtimeStatusSchema>;
 
+export const captureProfileSchema = z.enum(["canonical", "debug"]);
+
+export type CaptureProfile = z.infer<typeof captureProfileSchema>;
+
 export const runtimeCommandMethodSchema = z.enum(["status", "capture"]);
 
 export type RuntimeCommandMethod = z.infer<typeof runtimeCommandMethodSchema>;
@@ -82,16 +86,36 @@ export const runtimeCommandSchema = z.discriminatedUnion("method", [
   z
     .object({
       id: z.string().min(1),
-      method: z.literal("capture")
+      method: z.literal("capture"),
+      profile: captureProfileSchema.optional()
     })
     .strict()
 ]);
 
 export type RuntimeCommand = z.infer<typeof runtimeCommandSchema>;
 
+export const runtimeCommandDiagnosticSchema = z
+  .object({
+    page: z
+      .object({
+        id: z.string().min(1),
+        name: z.string().min(1)
+      })
+      .strict()
+      .optional(),
+    recoverable: z.boolean().optional(),
+    scope: z.enum(["plugin-worker", "plugin-ui", "companion"]).optional(),
+    selectionCount: z.number().int().nonnegative().optional(),
+    suggestion: z.string().min(1).optional()
+  })
+  .strict();
+
+export type RuntimeCommandDiagnostic = z.infer<typeof runtimeCommandDiagnosticSchema>;
+
 export const runtimeCommandErrorSchema = z
   .object({
     commandId: z.string().min(1),
+    details: runtimeCommandDiagnosticSchema.optional(),
     error: z.string().min(1),
     method: runtimeCommandMethodSchema
   })
@@ -235,6 +259,7 @@ export const sessionCommandPollResponseSchema = z
 
 export const commandRequestSchema = z
   .object({
+    profile: captureProfileSchema.optional(),
     sessionId: z.string().min(1).optional()
   })
   .strict();

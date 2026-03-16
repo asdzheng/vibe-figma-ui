@@ -93,6 +93,6 @@ describe("fixture loaders", () => {
     await expect(loadSampleCaptureDocument()).resolves.toMatchObject({
       schemaVersion: "0.1"
     });
-    await expect(loadSamplePolicyRules()).resolves.toHaveLength(2);
+    await expect(loadSamplePolicyRules()).resolves.toHaveLength(3);
   });
 });

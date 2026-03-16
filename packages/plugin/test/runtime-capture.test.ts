@@ -11,6 +11,7 @@ import type {
   RuntimeVariable,
   RuntimeVariableCollection
 } from "@vibe-figma/plugin";
+import type { ComponentPolicyRule } from "@vibe-figma/schema";
 
 describe("buildSelectionCaptureFromRuntime", () => {
   test("extracts styles, variables, layout, and instance metadata from runtime nodes", () => {
@@ -451,7 +452,7 @@ describe("buildSelectionCaptureFromRuntime", () => {
       },
       pluginApi,
       profile: "debug",
-      pluginVersion: "0.8.0",
+      pluginVersion: "0.9.0",
       selection
     });
 
@@ -470,5 +471,708 @@ describe("buildSelectionCaptureFromRuntime", () => {
         Size: "L"
       }
     });
+  });
+
+  test("applies injected component policy rules during runtime capture", () => {
+    const pluginApi: RuntimePluginApi = {
+      getStyleById() {
+        return null;
+      },
+      variables: {
+        getVariableById() {
+          return null;
+        },
+        getVariableCollectionById() {
+          return null;
+        }
+      }
+    };
+    const rules: ComponentPolicyRule[] = [
+      {
+        id: "inline-spacer",
+        match: {
+          componentNameRegex: ["(^|/)spacer($|/)"]
+        },
+        policy: "inline",
+        priority: 1
+      }
+    ];
+    const selection: RuntimeSceneNode[] = [
+      {
+        children: [
+          {
+            characters: "Resolved content",
+            id: "12:36",
+            name: "Label",
+            type: "TEXT"
+          }
+        ],
+        id: "12:35",
+        mainComponent: {
+          id: "20:1",
+          key: "spacer",
+          name: "Spacer",
+          parent: {
+            name: "Helpers",
+            type: "COMPONENT_SET"
+          }
+        },
+        name: "Spacer",
+        type: "INSTANCE"
+      }
+    ];
+
+    const document = buildSelectionCaptureFromRuntime({
+      componentPolicyRules: rules,
+      page: {
+        id: "1:2",
+        name: "Checkout"
+      },
+      pluginApi,
+      profile: "debug",
+      pluginVersion: "0.9.0",
+      selection,
+      timestamp: "2026-03-15T12:00:00.000Z"
+    });
+
+    expect(document.roots[0]).toMatchObject({
+      children: [
+        {
+          content: {
+            text: {
+              characters: "Resolved content"
+            }
+          },
+          kind: "text"
+        }
+      ],
+      designSystem: {
+        componentRef: "component:spacer",
+        policy: "inline"
+      },
+      kind: "frame",
+      origin: {
+        sourceComponentRef: "component:spacer",
+        transform: "inlined-instance"
+      }
+    });
+  });
+
+  test("hydrates mixed-text segments and grid metadata through the async runtime path", async () => {
+    const headingStyle: RuntimeStyle = {
+      id: "S:text-heading",
+      name: "Text / Heading",
+      type: "TEXT"
+    };
+    const bodyStyle: RuntimeStyle = {
+      id: "S:text-body",
+      name: "Text / Body",
+      type: "TEXT"
+    };
+    const pluginApi = {
+      getStyleById() {
+        throw new Error("sync style lookup should not be used");
+      },
+      async getStyleByIdAsync(id: string) {
+        if (id === headingStyle.id) {
+          return headingStyle as unknown as BaseStyle;
+        }
+
+        if (id === bodyStyle.id) {
+          return bodyStyle as unknown as BaseStyle;
+        }
+
+        return null;
+      },
+      variables: {
+        getVariableById() {
+          throw new Error("sync variable lookup should not be used");
+        },
+        async getVariableByIdAsync() {
+          return null;
+        },
+        getVariableCollectionById() {
+          throw new Error("sync variable collection lookup should not be used");
+        },
+        async getVariableCollectionByIdAsync() {
+          return null;
+        }
+      }
+    } as RuntimePluginApi & {
+      getStyleByIdAsync(id: string): Promise<BaseStyle | null>;
+      variables: RuntimePluginApi["variables"] & {
+        getVariableByIdAsync(id: string): Promise<Variable | null>;
+        getVariableCollectionByIdAsync(
+          id: string
+        ): Promise<VariableCollection | null>;
+      };
+    };
+    type AsyncMixedTextNode = RuntimeSceneNode & {
+      getStyledTextSegments(
+        fields: readonly ["fills", "textStyleId", "fillStyleId"]
+      ): Array<{
+        characters: string;
+        end: number;
+        fills: Array<{
+          color: {
+            b: number;
+            g: number;
+            r: number;
+          };
+          type: "SOLID";
+        }>;
+        start: number;
+        textStyleId: string;
+      }>;
+    };
+    const richTextNode = {
+      characters: "Hello world",
+      fills: Symbol("mixed"),
+      gridColumnAnchorIndex: 0,
+      gridRowAnchorIndex: 0,
+      id: "3:10",
+      name: "Rich Copy",
+      textAlignHorizontal: "LEFT",
+      textAutoResize: "HEIGHT",
+      textStyleId: Symbol("mixed"),
+      type: "TEXT",
+      width: 180
+    } as AsyncMixedTextNode;
+    const selection: RuntimeSceneNode[] = [
+      {
+        children: [richTextNode],
+        gridColumnCount: 1,
+        gridRowCount: 1,
+        id: "3:1",
+        layoutMode: "GRID",
+        name: "Async Grid",
+        type: "FRAME"
+      }
+    ];
+
+    richTextNode.getStyledTextSegments = () => [
+      {
+        characters: "Hello",
+        end: 5,
+        fills: [
+          {
+            color: {
+              b: 0.996,
+              g: 0.384,
+              r: 0.058
+            },
+            type: "SOLID"
+          }
+        ],
+        start: 0,
+        textStyleId: "S:text-heading"
+      },
+      {
+        characters: " world",
+        end: 11,
+        fills: [
+          {
+            color: {
+              b: 0.12,
+              g: 0.12,
+              r: 0.12
+            },
+            type: "SOLID"
+          }
+        ],
+        start: 5,
+        textStyleId: "S:text-body"
+      }
+    ];
+
+    const document = await buildSelectionCaptureFromRuntimeAsync({
+      page: {
+        id: "1:2",
+        name: "Async Grid"
+      },
+      pluginApi,
+      profile: "debug",
+      pluginVersion: "0.9.0",
+      selection
+    });
+
+    expect(document.roots[0]).toMatchObject({
+      layout: {
+        grid: {
+          columns: 1,
+          rows: 1
+        },
+        mode: "grid"
+      }
+    });
+    expect(document.roots[0]?.children?.[0]?.content?.text?.segments).toEqual([
+      {
+        characters: "Hello",
+        end: 5,
+        fill: [
+          {
+            fallback: "#0f62fe",
+            kind: "solid"
+          }
+        ],
+        start: 0,
+        textStyleRef: "style:S-text-heading"
+      },
+      {
+        characters: " world",
+        end: 11,
+        fill: [
+          {
+            fallback: "#1f1f1f",
+            kind: "solid"
+          }
+        ],
+        start: 5,
+        textStyleRef: "style:S-text-body"
+      }
+    ]);
+  });
+
+  test("drops symbol-valued mixed style ids and numeric fields during async runtime capture", async () => {
+    const pluginApi = {
+      getStyleById() {
+        throw new Error("sync style lookup should not be used");
+      },
+      async getStyleByIdAsync(id: string) {
+        if (typeof id !== "string") {
+          throw new TypeError("cannot convert symbol to number");
+        }
+
+        return null;
+      },
+      variables: {
+        getVariableById() {
+          throw new Error("sync variable lookup should not be used");
+        },
+        async getVariableByIdAsync() {
+          return null;
+        },
+        getVariableCollectionById() {
+          throw new Error("sync variable collection lookup should not be used");
+        },
+        async getVariableCollectionByIdAsync() {
+          return null;
+        }
+      }
+    } as RuntimePluginApi & {
+      getStyleByIdAsync(id: string): Promise<BaseStyle | null>;
+      variables: RuntimePluginApi["variables"] & {
+        getVariableByIdAsync(id: string): Promise<Variable | null>;
+        getVariableCollectionByIdAsync(
+          id: string
+        ): Promise<VariableCollection | null>;
+      };
+    };
+    const selection: RuntimeSceneNode[] = [
+      {
+        children: [
+          {
+            characters: "Mixed heading",
+            fillStyleId: Symbol("mixed-fill-style") as unknown as string,
+            fills: Symbol("mixed-fills"),
+            height: Symbol("mixed-height") as unknown as number,
+            id: "4:10",
+            maxLines: Symbol("mixed-lines") as unknown as number,
+            name: "Heading",
+            strokeStyleId: Symbol("mixed-stroke-style") as unknown as string,
+            textStyleId: Symbol("mixed-text-style"),
+            type: "TEXT",
+            width: 180,
+            x: Symbol("mixed-x") as unknown as number
+          }
+        ],
+        fillStyleId: Symbol("mixed-frame-fill-style") as unknown as string,
+        gridColumnCount: Symbol("mixed-columns") as unknown as number,
+        height: 220,
+        id: "4:1",
+        name: "Mixed Symbol Frame",
+        paddingTop: Symbol("mixed-padding-top") as unknown as number,
+        type: "FRAME",
+        width: Symbol("mixed-width") as unknown as number
+      }
+    ];
+
+    const document = await buildSelectionCaptureFromRuntimeAsync({
+      page: {
+        id: "1:2",
+        name: "Mixed Symbols"
+      },
+      pluginApi,
+      profile: "debug",
+      pluginVersion: "0.9.0",
+      selection
+    });
+
+    expect(document.schemaVersion).toBe("0.1");
+    expect(document.roots[0]).toMatchObject({
+      bounds: {
+        height: 220
+      },
+      children: [
+        {
+          bounds: {
+            width: 180
+          },
+          content: {
+            text: {
+              characters: "Mixed heading"
+            }
+          },
+          kind: "text"
+        }
+      ],
+      kind: "frame"
+    });
+    expect(document.roots[0]?.bounds).not.toHaveProperty("width");
+    expect(document.roots[0]?.layout).toBeUndefined();
+    expect(document.roots[0]?.children?.[0]?.bounds).not.toHaveProperty("height");
+    expect(document.roots[0]?.children?.[0]?.bounds).not.toHaveProperty("x");
+    expect(document.roots[0]?.children?.[0]?.content?.text).not.toHaveProperty("maxLines");
+    expect(document.roots[0]?.children?.[0]?.content?.text).not.toHaveProperty(
+      "textStyleRef"
+    );
+  });
+
+  test("drops invalid grid sentinel values during async runtime capture", async () => {
+    const pluginApi = {
+      getStyleById() {
+        throw new Error("sync style lookup should not be used");
+      },
+      async getStyleByIdAsync() {
+        return null;
+      },
+      variables: {
+        getVariableById() {
+          throw new Error("sync variable lookup should not be used");
+        },
+        async getVariableByIdAsync() {
+          return null;
+        },
+        getVariableCollectionById() {
+          throw new Error("sync variable collection lookup should not be used");
+        },
+        async getVariableCollectionByIdAsync() {
+          return null;
+        }
+      }
+    } as RuntimePluginApi & {
+      getStyleByIdAsync(id: string): Promise<BaseStyle | null>;
+      variables: RuntimePluginApi["variables"] & {
+        getVariableByIdAsync(id: string): Promise<Variable | null>;
+        getVariableCollectionByIdAsync(
+          id: string
+        ): Promise<VariableCollection | null>;
+      };
+    };
+    const selection: RuntimeSceneNode[] = [
+      {
+        children: [
+          {
+            gridColumnAnchorIndex: -1 as unknown as number,
+            gridColumnSpan: 0,
+            gridRowAnchorIndex: -1 as unknown as number,
+            gridRowSpan: 0,
+            height: 40,
+            id: "5:10",
+            name: "Card",
+            type: "RECTANGLE",
+            width: 80
+          }
+        ],
+        gridColumnCount: 0,
+        gridColumnGap: 24,
+        gridRowCount: 0,
+        gridRowGap: 16,
+        height: 220,
+        id: "5:1",
+        layoutMode: "GRID",
+        name: "Sentinel Grid",
+        type: "FRAME",
+        width: 320
+      }
+    ];
+
+    const document = await buildSelectionCaptureFromRuntimeAsync({
+      page: {
+        id: "1:2",
+        name: "Sentinel Grid"
+      },
+      pluginApi,
+      profile: "debug",
+      pluginVersion: "0.9.0",
+      selection
+    });
+
+    expect(document.roots[0]).toMatchObject({
+      kind: "frame",
+      layout: {
+        grid: {
+          columnGap: 24,
+          rowGap: 16
+        },
+        mode: "grid"
+      }
+    });
+    expect(document.roots[0]?.layout?.grid).not.toHaveProperty("columns");
+    expect(document.roots[0]?.layout?.grid).not.toHaveProperty("rows");
+    expect(document.roots[0]?.children?.[0]?.layout).toBeUndefined();
+  });
+
+  test("captures vectors, boolean operations, grid layout metadata, and mixed-text segments", () => {
+    const styles = new Map<string, RuntimeStyle>([
+      [
+        "S:text-heading",
+        {
+          id: "S:text-heading",
+          name: "Text / Heading",
+          type: "TEXT"
+        }
+      ],
+      [
+        "S:text-body",
+        {
+          id: "S:text-body",
+          name: "Text / Body",
+          type: "TEXT"
+        }
+      ]
+    ]);
+    const pluginApi: RuntimePluginApi = {
+      getStyleById(id) {
+        return styles.get(id) ?? null;
+      },
+      variables: {
+        getVariableById() {
+          return null;
+        },
+        getVariableCollectionById() {
+          return null;
+        }
+      }
+    };
+    const selection: RuntimeSceneNode[] = [
+      {
+        children: [
+          {
+            fills: [
+              {
+                color: {
+                  b: 0.2,
+                  g: 0.4,
+                  r: 0.8
+                },
+                type: "SOLID"
+              }
+            ],
+            gridColumnAnchorIndex: 0,
+            gridRowAnchorIndex: 0,
+            height: 48,
+            id: "2:10",
+            name: "Star Icon",
+            type: "VECTOR",
+            width: 48
+          },
+          {
+            children: [
+              {
+                height: 32,
+                id: "2:21",
+                name: "Boolean Child",
+                type: "RECTANGLE",
+                width: 64
+              }
+            ],
+            gridChildHorizontalAlign: "CENTER",
+            gridChildVerticalAlign: "MAX",
+            gridColumnAnchorIndex: 1,
+            gridColumnSpan: 1,
+            gridRowAnchorIndex: 0,
+            gridRowSpan: 2,
+            height: 72,
+            id: "2:20",
+            name: "Combined Shape",
+            type: "BOOLEAN_OPERATION",
+            width: 72
+          },
+          {
+            characters: "Hello world",
+            fills: Symbol("mixed"),
+            gridColumnAnchorIndex: 0,
+            gridColumnSpan: 2,
+            gridRowAnchorIndex: 1,
+            id: "2:30",
+            name: "Rich Copy",
+            textAlignHorizontal: "LEFT",
+            textAutoResize: "HEIGHT",
+            textSegments: [
+              {
+                characters: "Hello",
+                end: 5,
+                fills: [
+                  {
+                    color: {
+                      b: 0.996,
+                      g: 0.384,
+                      r: 0.058
+                    },
+                    type: "SOLID"
+                  }
+                ],
+                start: 0,
+                textStyleId: "S:text-heading"
+              },
+              {
+                characters: " world",
+                end: 11,
+                fills: [
+                  {
+                    color: {
+                      b: 0.12,
+                      g: 0.12,
+                      r: 0.12
+                    },
+                    type: "SOLID"
+                  }
+                ],
+                start: 5,
+                textStyleId: "S:text-body"
+              }
+            ],
+            textStyleId: Symbol("mixed"),
+            type: "TEXT",
+            width: 180
+          }
+        ],
+        gridColumnCount: 2,
+        gridColumnGap: 24,
+        gridColumnSizes: [
+          {
+            type: "FIXED",
+            value: 120
+          },
+          {
+            type: "FLEX",
+            value: 1
+          }
+        ],
+        gridRowCount: 2,
+        gridRowGap: 16,
+        gridRowSizes: [
+          {
+            type: "HUG"
+          },
+          {
+            type: "FLEX",
+            value: 1
+          }
+        ],
+        height: 220,
+        id: "2:1",
+        layoutMode: "GRID",
+        name: "Grid Screen",
+        paddingBottom: 24,
+        paddingLeft: 24,
+        paddingRight: 24,
+        paddingTop: 24,
+        type: "FRAME",
+        width: 320
+      }
+    ];
+
+    const document = buildSelectionCaptureFromRuntime({
+      page: {
+        id: "1:2",
+        name: "Grid Page"
+      },
+      pluginApi,
+      profile: "debug",
+      pluginVersion: "0.9.0",
+      selection
+    });
+
+    expect(document.roots[0]).toMatchObject({
+      kind: "frame",
+      layout: {
+        grid: {
+          columnGap: 24,
+          columns: 2,
+          rowGap: 16,
+          rows: 2
+        },
+        mode: "grid"
+      }
+    });
+    expect(document.roots[0]?.layout?.grid?.columnSizes).toEqual([
+      {
+        type: "fixed",
+        value: 120
+      },
+      {
+        type: "flex",
+        value: 1
+      }
+    ]);
+    expect(document.roots[0]?.layout?.grid?.rowSizes).toEqual([
+      {
+        type: "hug"
+      },
+      {
+        type: "flex",
+        value: 1
+      }
+    ]);
+    expect(document.roots[0]?.children?.[0]).toMatchObject({
+      kind: "vector",
+      layout: {
+        gridChild: {
+          column: 0,
+          row: 0
+        }
+      }
+    });
+    expect(document.roots[0]?.children?.[1]).toMatchObject({
+      kind: "boolean-operation",
+      layout: {
+        gridChild: {
+          column: 1,
+          columnSpan: 1,
+          horizontalAlign: "center",
+          row: 0,
+          rowSpan: 2,
+          verticalAlign: "end"
+        }
+      }
+    });
+    expect(document.roots[0]?.children?.[2]?.content?.text?.segments).toEqual([
+      {
+        characters: "Hello",
+        end: 5,
+        fill: [
+          {
+            fallback: "#0f62fe",
+            kind: "solid"
+          }
+        ],
+        start: 0,
+        textStyleRef: "style:S-text-heading"
+      },
+      {
+        characters: " world",
+        end: 11,
+        fill: [
+          {
+            fallback: "#1f1f1f",
+            kind: "solid"
+          }
+        ],
+        start: 5,
+        textStyleRef: "style:S-text-body"
+      }
+    ]);
   });
 });
