@@ -319,6 +319,35 @@ function mapSizing(
   }
 }
 
+function mapGridTrack(
+  track: NonNullable<FigmaNodeLike["gridColumnSizes"]>[number]
+): {
+  type: "flex" | "fixed" | "hug";
+  value?: number | undefined;
+} {
+  return {
+    type: track.type.toLowerCase() as "flex" | "fixed" | "hug",
+    ...(track.value !== undefined ? { value: roundGeometryValue(track.value) } : {})
+  };
+}
+
+function mapGridAlign(
+  value:
+    | FigmaNodeLike["gridChildHorizontalAlign"]
+    | FigmaNodeLike["gridChildVerticalAlign"]
+): "start" | "center" | "end" | undefined {
+  switch (value) {
+    case "MIN":
+      return "start";
+    case "CENTER":
+      return "center";
+    case "MAX":
+      return "end";
+    default:
+      return undefined;
+  }
+}
+
 function mapTextAutoResize(
   value: FigmaNodeLike["textAutoResize"]
 ): TextAutoResizeMode | undefined {
@@ -362,6 +391,54 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
   const fills = node.fills?.map((paint) => mapPaint(paint));
   const strokes = node.strokes?.map((paint) => mapPaint(paint));
   const kind = mapNodeKind(node.type);
+  const grid =
+    node.gridColumnCount !== undefined ||
+    node.gridRowCount !== undefined ||
+    node.gridColumnGap !== undefined ||
+    node.gridRowGap !== undefined ||
+    node.gridColumnSizes?.length ||
+    node.gridRowSizes?.length
+      ? {
+          ...(node.gridColumnCount !== undefined
+            ? { columns: node.gridColumnCount }
+            : {}),
+          ...(node.gridRowCount !== undefined ? { rows: node.gridRowCount } : {}),
+          ...(node.gridColumnGap !== undefined
+            ? { columnGap: roundGeometryValue(node.gridColumnGap) }
+            : {}),
+          ...(node.gridRowGap !== undefined
+            ? { rowGap: roundGeometryValue(node.gridRowGap) }
+            : {}),
+          ...(node.gridColumnSizes?.length
+            ? { columnSizes: node.gridColumnSizes.map((track) => mapGridTrack(track)) }
+            : {}),
+          ...(node.gridRowSizes?.length
+            ? { rowSizes: node.gridRowSizes.map((track) => mapGridTrack(track)) }
+            : {})
+        }
+      : undefined;
+  const gridChild =
+    node.gridColumnAnchorIndex !== undefined ||
+    node.gridRowAnchorIndex !== undefined ||
+    node.gridColumnSpan !== undefined ||
+    node.gridRowSpan !== undefined ||
+    node.gridChildHorizontalAlign ||
+    node.gridChildVerticalAlign
+      ? {
+          ...(node.gridColumnAnchorIndex !== undefined
+            ? { column: node.gridColumnAnchorIndex }
+            : {}),
+          ...(node.gridRowAnchorIndex !== undefined ? { row: node.gridRowAnchorIndex } : {}),
+          ...(node.gridColumnSpan !== undefined ? { columnSpan: node.gridColumnSpan } : {}),
+          ...(node.gridRowSpan !== undefined ? { rowSpan: node.gridRowSpan } : {}),
+          ...(mapGridAlign(node.gridChildHorizontalAlign)
+            ? { horizontalAlign: mapGridAlign(node.gridChildHorizontalAlign) }
+            : {}),
+          ...(mapGridAlign(node.gridChildVerticalAlign)
+            ? { verticalAlign: mapGridAlign(node.gridChildVerticalAlign) }
+            : {})
+        }
+      : undefined;
   const padding = {
     ...(normalizeOptionalNumber(node.paddingBottom) &&
     normalizeOptionalNumber(node.paddingBottom) !== 0
@@ -440,6 +517,21 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
               ...(node.maxLines !== null && node.maxLines !== undefined
                 ? { maxLines: node.maxLines }
                 : {}),
+              ...(node.textSegments?.length
+                ? {
+                    segments: node.textSegments.map((segment) => ({
+                      characters: segment.characters,
+                      end: segment.end,
+                      ...(segment.fill?.length
+                        ? { fill: segment.fill.map((paint) => mapPaint(paint)) }
+                        : {}),
+                      start: segment.start,
+                      ...(segment.textStyleRef
+                        ? { textStyleRef: segment.textStyleRef }
+                        : {})
+                    }))
+                  }
+                : {}),
               ...(node.textStyleRef ? { textStyleRef: node.textStyleRef } : {})
             }
           }
@@ -509,6 +601,8 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
     ...(isUnknownType ? { figmaType: node.type } : {}),
     kind,
     ...(node.layoutMode ||
+    grid ||
+    gridChild ||
     node.layoutPositioning ||
     node.itemSpacing !== undefined ||
     node.paddingTop !== undefined ||
@@ -552,9 +646,13 @@ export function adaptFigmaNode(node: FigmaNodeLike): DesignNode {
                       ? "row"
                       : node.layoutMode === "VERTICAL"
                         ? "column"
+                        : node.layoutMode === "GRID"
+                          ? "grid"
                         : "none"
                 }
               : {}),
+            ...(grid ? { grid } : {}),
+            ...(gridChild ? { gridChild } : {}),
             ...((mapSizing(node.layoutSizingHorizontal) ||
             mapSizing(node.layoutSizingVertical))
               ? {
@@ -629,6 +727,12 @@ export function buildSelectionCapture(
   if (input.profile === "debug") {
     return createDesignDocument({
       capture,
+      ...(input.componentContextByRef
+        ? { componentContextByRef: input.componentContextByRef }
+        : {}),
+      ...(input.componentPolicyRules
+        ? { componentPolicyRules: input.componentPolicyRules }
+        : {}),
       profile: "debug",
       registries,
       roots
@@ -637,6 +741,12 @@ export function buildSelectionCapture(
 
   return createDesignDocument({
     capture,
+    ...(input.componentContextByRef
+      ? { componentContextByRef: input.componentContextByRef }
+      : {}),
+    ...(input.componentPolicyRules
+      ? { componentPolicyRules: input.componentPolicyRules }
+      : {}),
     registries,
     roots
   });

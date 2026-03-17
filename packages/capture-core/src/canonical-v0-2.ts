@@ -9,6 +9,20 @@ import {
   type RadiusValue
 } from "@vibe-figma/schema";
 
+const CANONICAL_NOISE_NAMES = new Set([
+  "assistive chips",
+  "content",
+  "details",
+  "headline and reviews",
+  "image",
+  "leading element",
+  "reviews stars",
+  "state-layer",
+  "supporting text",
+  "title & subtitle",
+  "trailing element"
+]);
+
 function stripPropertySuffix(value: string): string {
   return value.replace(/#.*$/, "").trim();
 }
@@ -75,9 +89,7 @@ function resolvePaintValue(
   const directFallback = extractFallbackHex(paint.fallback);
 
   if (directFallback) {
-    return {
-      value: directFallback
-    };
+    return directFallback;
   }
 
   if (paint.styleRef) {
@@ -85,9 +97,7 @@ function resolvePaintValue(
     const styleFallback = extractFallbackHex(style?.fallback);
 
     if (styleFallback) {
-      return {
-        value: styleFallback
-      };
+      return styleFallback;
     }
   }
 
@@ -302,22 +312,29 @@ function resolveStyle(
   document: DesignDocumentV0_1,
   node: DesignNode
 ): DesignNodeV0_2["style"] | undefined {
+  const fill =
+    node.kind === "text"
+      ? undefined
+      : resolvePaintGroup(document, node.appearance?.background);
   const stroke = node.appearance?.stroke?.[0];
   const strokeColor = stroke
     ? resolvePaintGroup(document, stroke.paints)
     : undefined;
+  const textColor =
+    node.kind === "text"
+      ? (resolvePaintGroup(
+          document,
+          node.content?.text?.fill
+        ) as CanonicalTokenOrValue | undefined)
+      : undefined;
   const textStyle =
     node.content?.text?.textStyleRef
       ? document.registries.styles[node.content.text.textStyleRef]?.name
       : undefined;
 
   return {
-    ...(resolvePaintGroup(document, node.appearance?.background)
-      ? { fill: resolvePaintGroup(document, node.appearance?.background) }
-      : {}),
-    ...(resolvePaintGroup(document, node.content?.text?.fill)
-      ? { textColor: resolvePaintGroup(document, node.content?.text?.fill) as CanonicalTokenOrValue }
-      : {}),
+    ...(fill ? { fill } : {}),
+    ...(textColor ? { textColor } : {}),
     ...(strokeColor && !Array.isArray(strokeColor)
       ? {
           stroke: {
@@ -369,13 +386,36 @@ function resolveComponentUse(
     ])
   );
 
-  return {
+  const componentUse: Exclude<DesignNodeV0_2["component"], string | undefined> = {
     ...(component?.library?.name ? { library: component.library.name } : {}),
     name: componentSet?.name ?? component?.name ?? node.name,
     ...(Object.keys(props).length > 0 ? { props } : {}),
-    ...(!component ? { status: "unmapped" } : {}),
+    ...(!component ? { status: "unmapped" as const } : {}),
     ...(Object.keys(variant).length > 0 ? { variant } : {})
   };
+
+  const compactKeys = Object.keys(componentUse);
+
+  return compactKeys.length === 1 && "name" in componentUse
+    ? componentUse.name
+    : componentUse;
+}
+
+function resolveText(node: DesignNode): DesignNodeV0_2["text"] | undefined {
+  if (!node.content?.text) {
+    return undefined;
+  }
+
+  return node.content.text.maxLines
+    ? {
+        lines: node.content.text.maxLines,
+        value: node.content.text.characters
+      }
+    : node.content.text.characters;
+}
+
+function isCanonicalNoiseName(name: string): boolean {
+  return CANONICAL_NOISE_NAMES.has(name.trim().toLowerCase());
 }
 
 function shouldKeepName(node: DesignNode, isRoot: boolean): boolean {
@@ -387,6 +427,16 @@ function shouldKeepName(node: DesignNode, isRoot: boolean): boolean {
     return false;
   }
 
+  if (
+    (node.kind === "frame" ||
+      node.kind === "group" ||
+      node.kind === "image" ||
+      node.kind === "shape") &&
+    isCanonicalNoiseName(node.name)
+  ) {
+    return false;
+  }
+
   return node.kind !== "text";
 }
 
@@ -395,27 +445,21 @@ function convertNode(
   node: DesignNode,
   isRoot: boolean
 ): DesignNodeV0_2 {
+  const component = resolveComponentUse(document, node);
   const layout = resolveLayout(node);
+  const size = resolveSize(node, isRoot);
   const style = resolveStyle(document, node);
+  const text = resolveText(node);
 
   return {
     ...(isRoot ? { id: node.pluginNodeId } : {}),
     kind: node.kind,
     ...(shouldKeepName(node, isRoot) ? { name: node.name } : {}),
-    ...(resolveComponentUse(document, node)
-      ? { component: resolveComponentUse(document, node) }
-      : {}),
+    ...(component ? { component } : {}),
     ...(layout && Object.keys(layout).length > 0 ? { layout } : {}),
-    ...(resolveSize(node, isRoot) ? { size: resolveSize(node, isRoot) } : {}),
+    ...(size ? { size } : {}),
     ...(style && Object.keys(style).length > 0 ? { style } : {}),
-    ...(node.content?.text
-      ? {
-          text: {
-            ...(node.content.text.maxLines ? { lines: node.content.text.maxLines } : {}),
-            value: node.content.text.characters
-          }
-        }
-      : {}),
+    ...(text ? { text } : {}),
     ...(node.content?.image
       ? {
           image: {

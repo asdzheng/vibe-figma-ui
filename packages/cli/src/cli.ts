@@ -10,20 +10,31 @@ import {
 } from "@vibe-figma/schema";
 
 import { createFetchCompanionClient } from "./client.js";
-import { renderDesignDocumentSnapshot } from "./snapshot.js";
+import {
+  renderDesignDocumentSnapshot,
+  renderDesignDocumentSnapshotHtml
+} from "./snapshot.js";
 import { startCompanionHttpServer } from "./server.js";
 import {
   DEFAULT_COMPANION_HOST,
   DEFAULT_COMPANION_PORT,
+  captureProfileSchema,
   type CompanionStatus
 } from "./transport.js";
 
-export const CLI_VERSION = "0.8.0";
+export const CLI_VERSION = "0.9.0";
+
+const legacyCompanionEnvMap = {
+  VIBE_FIGMA_BRIDGE_HOST: "VIBE_FIGMA_COMPANION_HOST",
+  VIBE_FIGMA_BRIDGE_PORT: "VIBE_FIGMA_COMPANION_PORT",
+  VIBE_FIGMA_BRIDGE_URL: "VIBE_FIGMA_COMPANION_URL"
+} as const;
 
 type ParsedGlobalOptions = {
   command: string;
   inputPath?: string;
   outputPath?: string;
+  profile?: "canonical" | "debug";
   sessionId?: string;
   targetUrl: string;
 };
@@ -75,24 +86,48 @@ function parsePort(value: string | undefined, fallbackValue: number): number {
   return parsedValue;
 }
 
+function parseProfile(
+  optionName: string,
+  rawValue: string | undefined
+): "canonical" | "debug" {
+  return captureProfileSchema.parse(parseOptionValue(optionName, rawValue));
+}
+
 function printJson(payload: unknown): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
 }
 
+function assertNoLegacyBridgeEnv(env: NodeJS.ProcessEnv): void {
+  const legacyPairs = Object.entries(legacyCompanionEnvMap).filter(
+    ([legacyName]) => {
+      const value = env[legacyName];
+      return typeof value === "string" && value.length > 0;
+    }
+  );
+
+  if (legacyPairs.length === 0) {
+    return;
+  }
+
+  const replacements = legacyPairs
+    .map(([legacyName, companionName]) => `${legacyName} -> ${companionName}`)
+    .join(", ");
+
+  throw new Error(
+    `Legacy bridge environment variables are no longer supported. Rename ${replacements}.`
+  );
+}
+
 function readDefaultBaseUrl(env: NodeJS.ProcessEnv): string {
-  const explicitBaseUrl =
-    env.VIBE_FIGMA_COMPANION_URL ?? env.VIBE_FIGMA_BRIDGE_URL;
+  const explicitBaseUrl = env.VIBE_FIGMA_COMPANION_URL;
 
   if (explicitBaseUrl) {
     return explicitBaseUrl.replace(/\/$/, "");
   }
 
-  const host =
-    env.VIBE_FIGMA_COMPANION_HOST ??
-    env.VIBE_FIGMA_BRIDGE_HOST ??
-    DEFAULT_COMPANION_HOST;
+  const host = env.VIBE_FIGMA_COMPANION_HOST ?? DEFAULT_COMPANION_HOST;
   const port = parsePort(
-    env.VIBE_FIGMA_COMPANION_PORT ?? env.VIBE_FIGMA_BRIDGE_PORT ?? env.PORT,
+    env.VIBE_FIGMA_COMPANION_PORT ?? env.PORT,
     DEFAULT_COMPANION_PORT
   );
 
@@ -132,12 +167,13 @@ function usage(): string {
     "Commands:",
     "  init",
     "  dev",
+    "  sessions [--companion-url <url>]",
     "  status [--session <id>] [--companion-url <url>]",
-    "  capture [--session <id>] [--companion-url <url>]",
-    "  export-json [--session <id>] [--output <path>] [--companion-url <url>]",
+    "  capture [--profile <canonical|debug>] [--session <id>] [--companion-url <url>]",
+    "  export-json [--profile <canonical|debug>] [--session <id>] [--output <path>] [--companion-url <url>]",
     "  logs [--session <id>] [--limit <n>] [--companion-url <url>]",
     "  doctor [--companion-url <url>]",
-    "  screenshot [--input <path>] [--output <path>] [--session <id>] [--companion-url <url>]",
+    "  screenshot [--input <path>] [--output <path>] [--profile <canonical|debug>] [--session <id>] [--companion-url <url>]",
     ""
   ].join("\n");
 }
@@ -150,6 +186,7 @@ function parseGlobalOptions(
   const [command = "help", ...rest] = normalizedArgv;
   let inputPath: string | undefined;
   let outputPath: string | undefined;
+  let profile: "canonical" | "debug" | undefined;
   let sessionId: string | undefined;
   let targetUrl = readDefaultBaseUrl(env);
 
@@ -175,6 +212,17 @@ function parseGlobalOptions(
 
     if (argument.startsWith("--session=")) {
       sessionId = argument.slice("--session=".length);
+      continue;
+    }
+
+    if (argument === "--profile") {
+      profile = parseProfile(argument, rest[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (argument.startsWith("--profile=")) {
+      profile = parseProfile("--profile", argument.slice("--profile=".length));
       continue;
     }
 
@@ -216,6 +264,7 @@ function parseGlobalOptions(
     command,
     ...(inputPath ? { inputPath } : {}),
     ...(outputPath ? { outputPath } : {}),
+    ...(profile ? { profile } : {}),
     ...(sessionId ? { sessionId } : {}),
     targetUrl
   };
@@ -306,16 +355,18 @@ async function waitForever(): Promise<void> {
 }
 
 async function runDevCommand(env: NodeJS.ProcessEnv): Promise<void> {
-  const host =
-    env.VIBE_FIGMA_COMPANION_HOST ??
-    env.VIBE_FIGMA_BRIDGE_HOST ??
-    DEFAULT_COMPANION_HOST;
+  const host = env.VIBE_FIGMA_COMPANION_HOST ?? DEFAULT_COMPANION_HOST;
   const port = parsePort(
-    env.VIBE_FIGMA_COMPANION_PORT ?? env.VIBE_FIGMA_BRIDGE_PORT ?? env.PORT,
+    env.VIBE_FIGMA_COMPANION_PORT ?? env.PORT,
     DEFAULT_COMPANION_PORT
   );
   const server = await startCompanionHttpServer({
     host,
+    managerOptions: {
+      ...(env.VIBE_FIGMA_STATE_PATH
+        ? { stateFilePath: resolve(env.VIBE_FIGMA_STATE_PATH) }
+        : {})
+    },
     port,
     version: CLI_VERSION
   });
@@ -343,6 +394,7 @@ export async function runCli(
   argv: readonly string[],
   env: NodeJS.ProcessEnv = process.env
 ): Promise<void> {
+  assertNoLegacyBridgeEnv(env);
   const options = parseGlobalOptions(argv, env);
 
   if (options.command === "help") {
@@ -366,6 +418,18 @@ export async function runCli(
 
   if (options.command === "doctor") {
     printJson(await client.getDoctor());
+    return;
+  }
+
+  if (options.command === "sessions") {
+    const status = await client.getStatus();
+
+    printJson({
+      activeSessionId: status.activeSessionId ?? null,
+      connected: status.connected,
+      sessions: status.sessions,
+      totalSessions: status.sessions.length
+    });
     return;
   }
 
@@ -401,6 +465,7 @@ export async function runCli(
 
   if (options.command === "capture") {
     const capture = await client.requestCapture({
+      ...(options.profile ? { profile: options.profile } : {}),
       ...(options.sessionId ? { sessionId: options.sessionId } : {})
     });
 
@@ -414,6 +479,7 @@ export async function runCli(
 
   if (options.command === "export-json") {
     const capture = await client.requestCapture({
+      ...(options.profile ? { profile: options.profile } : {}),
       ...(options.sessionId ? { sessionId: options.sessionId } : {})
     });
 
@@ -430,16 +496,25 @@ export async function runCli(
       ? await readDocumentFromFile(options.inputPath)
       : (
           await client.requestCapture({
+            ...(options.profile ? { profile: options.profile } : {}),
             ...(options.sessionId ? { sessionId: options.sessionId } : {})
           })
         ).document;
     const renderResult = renderDesignDocumentSnapshot(document);
     const outputPath = options.outputPath ?? resolveDefaultScreenshotPath(options.inputPath);
+    const isHtmlPreview = outputPath.toLowerCase().endsWith(".html");
 
     await mkdir(dirname(resolve(outputPath)), { recursive: true });
-    await writeFile(resolve(outputPath), `${renderResult.svg}\n`, "utf8");
+    await writeFile(
+      resolve(outputPath),
+      isHtmlPreview
+        ? `${renderDesignDocumentSnapshotHtml(document, renderResult)}\n`
+        : `${renderResult.svg}\n`,
+      "utf8"
+    );
 
     printJson({
+      format: isHtmlPreview ? "html-preview" : "svg",
       ...summarizeDocument(document),
       materializedInstanceCount: renderResult.stats.materializedInstanceCount,
       outputPath: resolve(outputPath),

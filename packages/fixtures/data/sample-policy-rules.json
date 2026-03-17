@@ -1,7 +1,17 @@
 [
   {
-    "id": "icon-library",
+    "id": "icon-component-set",
     "priority": 100,
+    "match": {
+      "componentSetNameRegex": ["(^|/)icons?$", "(^|/)system-icons?$"],
+      "componentNameRegex": ["(^|/)(icon|ic)/"]
+    },
+    "policy": "icon",
+    "reason": "normalize icon instances from icon component sets"
+  },
+  {
+    "id": "icon-library",
+    "priority": 110,
     "match": {
       "libraryNameRegex": ["(^|/)icons?$", "(^|/)system-icons?$"],
       "componentNameRegex": ["(^|/)(icon|ic)/"]

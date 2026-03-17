@@ -42,7 +42,11 @@ describe("buildSelectionCapture", () => {
     expect(document.roots[0]?.component).toMatchObject({
       name: "Button / Primary"
     });
-    expect(document.roots[0]?.component?.variant).toEqual({
+    expect(
+      typeof document.roots[0]?.component === "string"
+        ? undefined
+        : document.roots[0]?.component?.variant
+    ).toEqual({
       Size: "L",
       Tone: "Primary"
     });

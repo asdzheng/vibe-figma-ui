@@ -1,7 +1,6 @@
 import type {
   AnyDesignNode,
   CanonicalTokenOrValue,
-  ComponentUse,
   ComponentPropertyValue,
   DesignDocument,
   DesignNodeV0_2,
@@ -39,7 +38,9 @@ export type SnapshotRenderResult = {
 };
 
 type RenderContext = {
+  defs: string[];
   document: DesignDocument;
+  nextDefId: number;
   stats: SnapshotRenderStats;
 };
 
@@ -60,11 +61,33 @@ type InstanceMetadata = {
 
 type SnapshotComponentProperties = Record<string, string | boolean>;
 
+type SnapshotVariantValues = Record<string, string | boolean>;
+
+type PaintFill = {
+  opacity?: number;
+  value: string;
+};
+
+type TextAlignment = {
+  horizontal: "center" | "left" | "right";
+  vertical: "bottom" | "center" | "top";
+};
+
+type TextMetrics = {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: number;
+  letterSpacing: number;
+  lineHeight: number;
+};
+
 type LabelTextOptions = {
   color?: string;
+  fontFamily?: string;
   fontSize?: number;
   fontWeight?: number;
   letterSpacing?: number;
+  textAnchor?: "end" | "middle" | "start";
 };
 
 function isV02Node(node: DesignNode): node is DesignNodeV0_2 {
@@ -88,11 +111,18 @@ function sanitizeVariantLabel(value: string): string {
   return value.replace(/#.*$/, "").trim();
 }
 
-function getNodeSize(node: DesignNode): NodeSize {
-  const width = isV02Node(node) ? node.size?.width ?? 320 : node.bounds?.width ?? 320;
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getNodeSize(node: DesignNode, document?: DesignDocument): NodeSize {
+  const sizeHint = document ? getIntrinsicNodeSize(document, node) : null;
+  const width = isV02Node(node)
+    ? node.size?.width ?? sizeHint?.width ?? 320
+    : node.bounds?.width ?? sizeHint?.width ?? 320;
   const height = isV02Node(node)
-    ? node.size?.height ?? 120
-    : node.bounds?.height ?? 120;
+    ? node.size?.height ?? sizeHint?.height ?? 120
+    : node.bounds?.height ?? sizeHint?.height ?? 120;
 
   return {
     height: Math.max(height, 1),
@@ -162,7 +192,51 @@ function hasExplicitPosition(node: DesignNode): boolean {
     : node.bounds?.x !== undefined || node.bounds?.y !== undefined;
 }
 
-function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePosition> {
+function getFlowChildSize(
+  parent: DesignNode,
+  child: DesignNode,
+  document: DesignDocument
+): NodeSize {
+  const parentLayoutMode = isV02Node(parent) ? parent.layout?.flow : parent.layout?.mode;
+  const parentSize = getNodeSize(parent, document);
+  const padding = getPadding(parent);
+  const availableCrossSize =
+    parentLayoutMode === "row"
+      ? Math.max(parentSize.height - padding.top - padding.bottom, 0)
+      : Math.max(parentSize.width - padding.left - padding.right, 0);
+  const size = getNodeSize(child, document);
+
+  if (!isV02Node(child)) {
+    return size;
+  }
+
+  if (
+    parentLayoutMode === "column" &&
+    child.layout?.sizing?.width === "fill"
+  ) {
+    return {
+      ...size,
+      width: availableCrossSize
+    };
+  }
+
+  if (
+    parentLayoutMode === "row" &&
+    child.layout?.sizing?.height === "fill"
+  ) {
+    return {
+      ...size,
+      height: availableCrossSize
+    };
+  }
+
+  return size;
+}
+
+function getFlowLayoutPositions(
+  parent: DesignNode,
+  document: DesignDocument
+): Map<DesignNode, NodePosition> {
   const layoutMode = isV02Node(parent) ? parent.layout?.flow : parent.layout?.mode;
 
   if (layoutMode !== "row" && layoutMode !== "column") {
@@ -180,7 +254,7 @@ function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePositio
     return positions;
   }
 
-  const parentSize = getNodeSize(parent);
+  const parentSize = getNodeSize(parent, document);
   const padding = getPadding(parent);
   const justifyContent = isV02Node(parent)
     ? parent.layout?.align?.justify ?? "start"
@@ -190,8 +264,9 @@ function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePositio
     : parent.layout?.align?.alignItems ?? "start";
   const isRow = layoutMode === "row";
   const gap = parent.layout?.gap ?? 0;
+  const childSizes = new Map(flowChildren.map((child) => [child, getFlowChildSize(parent, child, document)]));
   const totalMainSize = flowChildren.reduce((sum, child) => {
-    const size = getNodeSize(child);
+    const size = childSizes.get(child) ?? getNodeSize(child, document);
 
     return sum + (isRow ? size.width : size.height);
   }, 0);
@@ -204,7 +279,8 @@ function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePositio
   const baseGapTotal = Math.max(flowChildren.length - 1, 0) * gap;
   const contentMainSize = totalMainSize + baseGapTotal;
   const dynamicGap =
-    justifyContent === "space-between" && flowChildren.length > 1
+    (justifyContent === "space-between" || justifyContent === "between") &&
+    flowChildren.length > 1
       ? Math.max((availableMainSize - totalMainSize) / (flowChildren.length - 1), 0)
       : gap;
   const startMainOffset =
@@ -217,7 +293,7 @@ function getFlowLayoutPositions(parent: DesignNode): Map<DesignNode, NodePositio
   let cursor = (isRow ? padding.left : padding.top) + startMainOffset;
 
   for (const child of flowChildren) {
-    const size = getNodeSize(child);
+    const size = childSizes.get(child) ?? getNodeSize(child, document);
     const availableCrossSize = Math.max(
       (isRow
         ? parentSize.height - padding.top - padding.bottom
@@ -270,7 +346,8 @@ function getRadiusValue(node: DesignNode): number {
   return Math.max(radius.topLeft, radius.topRight, radius.bottomRight, radius.bottomLeft);
 }
 
-function rgbToHex(color: {
+function rgbaToHex(color: {
+  a?: number;
   b: number;
   g: number;
   r: number;
@@ -280,7 +357,56 @@ function rgbToHex(color: {
       .toString(16)
       .padStart(2, "0");
 
-  return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
+  const alpha = color.a === undefined ? "" : toHex(clamp(color.a, 0, 1));
+
+  return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}${alpha}`;
+}
+
+function rgbToHex(color: {
+  b: number;
+  g: number;
+  r: number;
+}): string {
+  return rgbaToHex(color);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getPaintHexFromFallback(
+  fallback: unknown
+): string | undefined {
+  if (!isRecord(fallback) || !("color" in fallback) || !isRecord(fallback.color)) {
+    return undefined;
+  }
+
+  const color = fallback.color;
+
+  if (
+    !("r" in color) ||
+    !("g" in color) ||
+    !("b" in color) ||
+    typeof color.r !== "number" ||
+    typeof color.g !== "number" ||
+    typeof color.b !== "number"
+  ) {
+    return undefined;
+  }
+
+  const alpha =
+    "a" in color && typeof color.a === "number"
+      ? color.a
+      : "opacity" in fallback && typeof fallback.opacity === "number"
+        ? fallback.opacity
+        : undefined;
+
+  return rgbaToHex({
+    ...(alpha !== undefined ? { a: alpha } : {}),
+    b: color.b,
+    g: color.g,
+    r: color.r
+  });
 }
 
 function normalizeStyleColor(style: StyleRegistryEntry | undefined): string | undefined {
@@ -316,7 +442,13 @@ function normalizeStyleColor(style: StyleRegistryEntry | undefined): string | un
     return undefined;
   }
 
-  return rgbToHex({
+  const alpha =
+    "opacity" in firstPaint && typeof firstPaint.opacity === "number"
+      ? Number(firstPaint.opacity)
+      : undefined;
+
+  return rgbaToHex({
+    ...(alpha !== undefined ? { a: alpha } : {}),
     b: Number(color.b),
     g: Number(color.g),
     r: Number(color.r)
@@ -330,11 +462,27 @@ function getCanonicalColor(
     return undefined;
   }
 
-  if ("value" in value && value.value.startsWith("#")) {
-    return value.value;
+  if (typeof value === "string" && value.startsWith("#")) {
+    return value;
   }
 
   return undefined;
+}
+
+function getCanonicalComponentUse(
+  node: DesignNodeV0_2
+): Exclude<DesignNodeV0_2["component"], string | undefined> | undefined {
+  return node.component && typeof node.component !== "string" ? node.component : undefined;
+}
+
+function getCanonicalComponentName(node: DesignNodeV0_2): string | undefined {
+  return typeof node.component === "string"
+    ? node.component
+    : getCanonicalComponentUse(node)?.name;
+}
+
+function getCanonicalTextValue(node: DesignNodeV0_2): string | undefined {
+  return typeof node.text === "string" ? node.text : node.text?.value;
 }
 
 function getPaintColor(document: DesignDocument, paint: PaintValue | undefined): string | undefined {
@@ -350,11 +498,139 @@ function getPaintColor(document: DesignDocument, paint: PaintValue | undefined):
     return paint.fallback;
   }
 
+  const fallbackColor = getPaintHexFromFallback(paint.fallback);
+
+  if (fallbackColor) {
+    return fallbackColor;
+  }
+
   if (paint.styleRef) {
     return normalizeStyleColor(document.registries.styles[paint.styleRef]);
   }
 
   return undefined;
+}
+
+function registerDefinition(
+  context: RenderContext,
+  prefix: string,
+  renderDefinition: (id: string) => string
+): string {
+  const id = `snapshot-${prefix}-${context.nextDefId}`;
+
+  context.nextDefId += 1;
+  context.defs.push(renderDefinition(id));
+
+  return id;
+}
+
+function resolveGradientFill(
+  context: RenderContext,
+  paint: PaintValue
+): PaintFill | null {
+  if (!isRecord(paint.fallback) || !Array.isArray(paint.fallback.gradientStops)) {
+    return null;
+  }
+
+  const stops = paint.fallback.gradientStops
+    .map((stop) => {
+      if (
+        !isRecord(stop) ||
+        !("color" in stop) ||
+        !isRecord(stop.color) ||
+        !("position" in stop) ||
+        typeof stop.position !== "number"
+      ) {
+        return null;
+      }
+
+      const color = stop.color;
+
+      if (
+        !("r" in color) ||
+        !("g" in color) ||
+        !("b" in color) ||
+        typeof color.r !== "number" ||
+        typeof color.g !== "number" ||
+        typeof color.b !== "number"
+      ) {
+        return null;
+      }
+
+      const alpha = "a" in color && typeof color.a === "number" ? color.a : undefined;
+
+      return {
+        color: rgbaToHex({
+          ...(alpha !== undefined ? { a: alpha } : {}),
+          b: color.b,
+          g: color.g,
+          r: color.r
+        }),
+        position: clamp(stop.position, 0, 1)
+      };
+    })
+    .filter((stop): stop is { color: string; position: number } => stop !== null);
+
+  if (stops.length === 0) {
+    return null;
+  }
+
+  const gradientType =
+    "gradientType" in paint.fallback && typeof paint.fallback.gradientType === "string"
+      ? paint.fallback.gradientType
+      : "GRADIENT_LINEAR";
+  const id = registerDefinition(context, "gradient", (definitionId) => {
+    const stopMarkup = stops
+      .map(
+        (stop) =>
+          `<stop offset="${formatNumber(stop.position * 100)}%" stop-color="${escapeXml(stop.color)}" />`
+      )
+      .join("");
+
+    if (gradientType === "GRADIENT_RADIAL") {
+      return `<radialGradient id="${definitionId}" cx="50%" cy="50%" r="70%">${stopMarkup}</radialGradient>`;
+    }
+
+    const axis =
+      gradientType === "GRADIENT_ANGULAR"
+        ? 'x1="0%" y1="100%" x2="100%" y2="0%"'
+        : gradientType === "GRADIENT_DIAMOND"
+          ? 'x1="50%" y1="0%" x2="50%" y2="100%"'
+          : 'x1="0%" y1="0%" x2="0%" y2="100%"';
+
+    return `<linearGradient id="${definitionId}" ${axis}>${stopMarkup}</linearGradient>`;
+  });
+
+  return {
+    value: `url(#${id})`
+  };
+}
+
+function resolvePaintFill(
+  context: RenderContext,
+  node: DesignNode,
+  fallbackColor: string
+): PaintFill {
+  if (isV02Node(node)) {
+    return {
+      value: getPrimaryPaintColor(context.document, node.style?.fill, fallbackColor)
+    };
+  }
+
+  const paints = node.appearance?.background;
+  const [primaryPaint] = paints ?? [];
+
+  if (primaryPaint?.kind === "gradient") {
+    const gradientFill = resolveGradientFill(context, primaryPaint);
+
+    if (gradientFill) {
+      return gradientFill;
+    }
+  }
+
+  return {
+    value: getPrimaryPaintColor(context.document, paints, fallbackColor)
+  };
 }
 
 function getPrimaryPaintColor(
@@ -367,8 +643,12 @@ function getPrimaryPaintColor(
   fallbackColor: string
 ): string {
   if (!isDesignDocumentV0_1(document)) {
-    const values = Array.isArray(paints) ? paints : paints ? [paints] : [];
-    const color = values.map((value) => getCanonicalColor(value as CanonicalTokenOrValue)).find(Boolean);
+    const values = Array.isArray(paints)
+      ? (paints as CanonicalTokenOrValue[])
+      : paints
+        ? [paints as CanonicalTokenOrValue]
+        : [];
+    const color = values.map((value) => getCanonicalColor(value)).find(Boolean);
 
     return color ?? fallbackColor;
   }
@@ -427,86 +707,282 @@ function getTextStyleName(document: DesignDocument, node: DesignNode): string {
   return document.registries.styles[textStyleRef]?.name?.toLowerCase() ?? "";
 }
 
-function resolveTextMetrics(document: DesignDocument, node: DesignNode): {
-  fontSize: number;
-  fontWeight: number;
-  lineHeight: number;
-} {
+function resolveVariableValue(
+  document: DesignDocument,
+  variableRef: string,
+  seen = new Set<string>()
+): unknown {
+  if (!isDesignDocumentV0_1(document) || seen.has(variableRef)) {
+    return undefined;
+  }
+
+  seen.add(variableRef);
+  const variable = document.registries.variables[variableRef];
+  const value = variable?.modes[0]?.value;
+
+  if (
+    isRecord(value) &&
+    value.type === "VARIABLE_ALIAS" &&
+    typeof value.ref === "string"
+  ) {
+    return resolveVariableValue(document, value.ref, seen);
+  }
+
+  return value;
+}
+
+function getTextStyleEntry(
+  document: DesignDocument,
+  node: DesignNode
+): StyleRegistryEntry | undefined {
+  if (isV02Node(node) || !isDesignDocumentV0_1(document)) {
+    return undefined;
+  }
+
+  const textStyleRef = node.content?.text?.textStyleRef;
+
+  return textStyleRef ? document.registries.styles[textStyleRef] : undefined;
+}
+
+function getTextStyleMetric(
+  document: DesignDocument,
+  style: StyleRegistryEntry | undefined,
+  metricName: string
+): number | string | undefined {
+  const variableRef = style?.boundVariables?.[metricName];
+
+  if (typeof variableRef !== "string") {
+    return undefined;
+  }
+
+  const value = resolveVariableValue(document, variableRef);
+
+  return typeof value === "number" || typeof value === "string" ? value : undefined;
+}
+
+function resolveFontWeight(value: string | number | undefined): number {
+  if (typeof value === "number") {
+    return clamp(Math.round(value), 100, 900);
+  }
+
+  if (!value) {
+    return 400;
+  }
+
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes("thin")) {
+    return 100;
+  }
+
+  if (normalized.includes("light")) {
+    return 300;
+  }
+
+  if (normalized.includes("medium")) {
+    return 500;
+  }
+
+  if (normalized.includes("semi")) {
+    return 600;
+  }
+
+  if (normalized.includes("bold")) {
+    return 700;
+  }
+
+  if (normalized.includes("black")) {
+    return 900;
+  }
+
+  return 400;
+}
+
+function getNamedTextMetrics(styleName: string): Omit<TextMetrics, "fontFamily"> | null {
+  const normalizedStyle = styleName.toLowerCase();
+
+  const materialMetrics: Array<{
+    fontSize: number;
+    fontWeight: number;
+    lineHeight: number;
+    matcher: string;
+  }> = [
+    { fontSize: 57, fontWeight: 400, lineHeight: 64, matcher: "display/large" },
+    { fontSize: 45, fontWeight: 400, lineHeight: 52, matcher: "display/medium" },
+    { fontSize: 36, fontWeight: 400, lineHeight: 44, matcher: "display/small" },
+    { fontSize: 32, fontWeight: 400, lineHeight: 40, matcher: "headline/large" },
+    { fontSize: 28, fontWeight: 400, lineHeight: 36, matcher: "headline/medium" },
+    { fontSize: 24, fontWeight: 400, lineHeight: 32, matcher: "headline/small" },
+    { fontSize: 22, fontWeight: 400, lineHeight: 28, matcher: "title/large" },
+    { fontSize: 16, fontWeight: 500, lineHeight: 24, matcher: "title/medium" },
+    { fontSize: 14, fontWeight: 500, lineHeight: 20, matcher: "title/small" },
+    { fontSize: 16, fontWeight: 400, lineHeight: 24, matcher: "body/large" },
+    { fontSize: 14, fontWeight: 400, lineHeight: 20, matcher: "body/medium" },
+    { fontSize: 12, fontWeight: 400, lineHeight: 16, matcher: "body/small" },
+    { fontSize: 14, fontWeight: 500, lineHeight: 20, matcher: "label/large" },
+    { fontSize: 12, fontWeight: 500, lineHeight: 16, matcher: "label/medium" },
+    { fontSize: 11, fontWeight: 500, lineHeight: 16, matcher: "label/small" }
+  ];
+
+  const matchedMetrics = materialMetrics.find(({ matcher }) =>
+    normalizedStyle.includes(matcher)
+  );
+
+  return matchedMetrics
+    ? {
+        fontSize: matchedMetrics.fontSize,
+        fontWeight: matchedMetrics.fontWeight,
+        letterSpacing: normalizedStyle.includes("label/") ? 0.1 : 0,
+        lineHeight: matchedMetrics.lineHeight
+      }
+    : null;
+}
+
+function resolveTextMetrics(document: DesignDocument, node: DesignNode): TextMetrics {
   const styleName = getTextStyleName(document, node);
+  const styleEntry = getTextStyleEntry(document, node);
+  const namedMetrics = getNamedTextMetrics(styleName);
+  const fontSize = getTextStyleMetric(document, styleEntry, "fontSize");
+  const lineHeight = getTextStyleMetric(document, styleEntry, "lineHeight");
+  const letterSpacing = getTextStyleMetric(document, styleEntry, "letterSpacing");
+  const fontWeight = getTextStyleMetric(document, styleEntry, "fontStyle");
+  const fontFamily = getTextStyleMetric(document, styleEntry, "fontFamily");
 
-  if (styleName.includes("headline/medium")) {
+  if (
+    typeof fontSize === "number" &&
+    typeof lineHeight === "number"
+  ) {
     return {
-      fontSize: 28,
-      fontWeight: 500,
-      lineHeight: 36
+      fontFamily: typeof fontFamily === "string" ? `${fontFamily}, Arial, sans-serif` : DEFAULT_FONT_FAMILY,
+      fontSize,
+      fontWeight: resolveFontWeight(fontWeight),
+      letterSpacing: typeof letterSpacing === "number" ? letterSpacing : namedMetrics?.letterSpacing ?? 0,
+      lineHeight
     };
   }
 
-  if (styleName.includes("title/large")) {
+  if (namedMetrics) {
     return {
-      fontSize: 22,
-      fontWeight: 400,
-      lineHeight: 28
+      fontFamily: DEFAULT_FONT_FAMILY,
+      ...namedMetrics
     };
   }
 
-  if (styleName.includes("label/large")) {
-    return {
-      fontSize: 14,
-      fontWeight: 500,
-      lineHeight: 20
-    };
-  }
-
-  if (styleName.includes("body/large")) {
-    return {
-      fontSize: 16,
-      fontWeight: 400,
-      lineHeight: 24
-    };
-  }
-
-  if (styleName.includes("body/medium")) {
-    return {
-      fontSize: 14,
-      fontWeight: 400,
-      lineHeight: 20
-    };
-  }
-
-  const { height } = getNodeSize(node);
-  const fontSize = Math.max(Math.min(height * 0.72, 20), 12);
+  const explicitHeight = isV02Node(node) ? node.size?.height : node.bounds?.height;
+  const inferredFontSize = clamp((explicitHeight ?? 18) * 0.72, 12, 20);
 
   return {
-    fontSize,
+    fontFamily: DEFAULT_FONT_FAMILY,
+    fontSize: inferredFontSize,
     fontWeight: 400,
-    lineHeight: fontSize * 1.35
+    letterSpacing: 0,
+    lineHeight: inferredFontSize * 1.35
   };
 }
 
-function wrapText(value: string, maxCharsPerLine: number): string[] {
+function estimateTextWidth(
+  value: string,
+  fontSize: number,
+  letterSpacing = 0
+): number {
+  return Array.from(value).reduce((sum, character, index) => {
+    const glyphWidth = character === " " ? fontSize * 0.34 : fontSize * 0.56;
+
+    return sum + glyphWidth + (index < value.length - 1 ? letterSpacing : 0);
+  }, 0);
+}
+
+function truncateTextToWidth(
+  value: string,
+  maxWidth: number,
+  metrics: TextMetrics
+): string {
+  if (estimateTextWidth(value, metrics.fontSize, metrics.letterSpacing) <= maxWidth) {
+    return value;
+  }
+
+  let truncated = value.trimEnd();
+
+  while (
+    truncated.length > 0 &&
+    estimateTextWidth(`${truncated}\u2026`, metrics.fontSize, metrics.letterSpacing) > maxWidth
+  ) {
+    truncated = truncated.slice(0, -1).trimEnd();
+  }
+
+  return truncated.length > 0 ? `${truncated}\u2026` : "\u2026";
+}
+
+function wrapText(
+  value: string,
+  maxWidth: number,
+  metrics: TextMetrics,
+  maxLines?: number
+): string[] {
   if (!value.trim()) {
     return [""];
   }
 
-  const words = value.split(/\s+/);
   const lines: string[] = [];
-  let currentLine = "";
+  const paragraphs = value.replaceAll("\r\n", "\n").split("\n");
+  let wasTruncated = false;
 
-  for (const word of words) {
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+  for (const paragraph of paragraphs) {
+    if (maxLines !== undefined && lines.length >= maxLines) {
+      wasTruncated = true;
+      break;
+    }
 
-    if (nextLine.length <= maxCharsPerLine || !currentLine) {
-      currentLine = nextLine;
+    if (!paragraph.trim()) {
+      lines.push("");
       continue;
     }
 
-    lines.push(currentLine);
-    currentLine = word;
+    const words = paragraph.split(/\s+/);
+    let currentLine = "";
+
+    for (const word of words) {
+      const nextLine = currentLine ? `${currentLine} ${word}` : word;
+
+      if (
+        estimateTextWidth(nextLine, metrics.fontSize, metrics.letterSpacing) <= maxWidth ||
+        !currentLine
+      ) {
+        currentLine = nextLine;
+        continue;
+      }
+
+      lines.push(currentLine);
+
+      if (maxLines !== undefined && lines.length >= maxLines) {
+        wasTruncated = true;
+        break;
+      }
+
+      currentLine = word;
+    }
+
+    if (maxLines !== undefined && lines.length >= maxLines) {
+      if (paragraph !== paragraphs.at(-1)) {
+        wasTruncated = true;
+      }
+      break;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
   }
 
-  if (currentLine) {
-    lines.push(currentLine);
+  if (maxLines !== undefined && lines.length > maxLines) {
+    lines.length = maxLines;
+    wasTruncated = true;
+  }
+
+  if (wasTruncated && lines.length > 0) {
+    const lastLineIndex = lines.length - 1;
+
+    lines[lastLineIndex] = truncateTextToWidth(lines[lastLineIndex] ?? "", maxWidth, metrics);
   }
 
   return lines;
@@ -519,21 +995,27 @@ function renderLabelText(
   options: LabelTextOptions = {}
 ): string {
   const color = options.color ?? FALLBACK_TEXT;
+  const fontFamily = options.fontFamily ?? DEFAULT_FONT_FAMILY;
   const fontSize = options.fontSize ?? 14;
   const fontWeight = options.fontWeight ?? 500;
   const letterSpacing = options.letterSpacing ?? 0;
+  const textAnchor = options.textAnchor ?? "start";
 
   return `<text x="${formatNumber(x)}" y="${formatNumber(y)}" fill="${escapeXml(
     color
   )}" font-family="${escapeXml(
-    DEFAULT_FONT_FAMILY
+    fontFamily
   )}" font-size="${formatNumber(fontSize)}" font-weight="${fontWeight}" letter-spacing="${formatNumber(
     letterSpacing
-  )}" dominant-baseline="hanging">${escapeXml(value)}</text>`;
+  )}" dominant-baseline="hanging" text-anchor="${textAnchor}">${escapeXml(value)}</text>`;
+}
+
+function getChipWidth(value: string): number {
+  return Math.max(46, estimateTextWidth(value, 11) + 18);
 }
 
 function renderChip(x: number, y: number, value: string): string {
-  const chipWidth = Math.max(46, value.length * 7.2 + 18);
+  const chipWidth = getChipWidth(value);
 
   return [
     `<rect x="${formatNumber(x)}" y="${formatNumber(y)}" width="${formatNumber(
@@ -552,13 +1034,15 @@ function getInstanceMetadata(
   node: DesignNode
 ): InstanceMetadata | null {
   if (isV02Node(node)) {
-    if (!node.component) {
+    const componentName = getCanonicalComponentName(node);
+
+    if (!componentName) {
       return null;
     }
 
     return {
-      componentName: node.component.name,
-      componentSetName: node.component.name
+      componentName,
+      componentSetName: componentName
     };
   }
 
@@ -595,10 +1079,18 @@ function getInstanceProperties(
   node: DesignNode
 ): SnapshotComponentProperties | Record<string, ComponentPropertyValue> {
   if (isV02Node(node)) {
-    return node.component?.props ?? {};
+    return getCanonicalComponentUse(node)?.props ?? {};
   }
 
   return node.designSystem?.instance?.properties ?? {};
+}
+
+function getInstanceVariants(node: DesignNode): SnapshotVariantValues {
+  if (isV02Node(node)) {
+    return getCanonicalComponentUse(node)?.variant ?? {};
+  }
+
+  return node.designSystem?.instance?.variant ?? {};
 }
 
 function findPropertyValue(
@@ -635,6 +1127,17 @@ function findTextProperty(
   return null;
 }
 
+function findVariantValue(
+  variants: SnapshotVariantValues,
+  propertyName: string
+): string | boolean | null {
+  const matchedEntry = Object.entries(variants).find(
+    ([key]) => sanitizeVariantLabel(key) === propertyName
+  );
+
+  return matchedEntry?.[1] ?? null;
+}
+
 function findFirstTextProperty(
   properties: SnapshotComponentProperties | Record<string, ComponentPropertyValue>
 ): string | null {
@@ -658,7 +1161,7 @@ function findOverrideText(
   propertyNames: readonly string[]
 ): string | null {
   if (isV02Node(node)) {
-    return findTextProperty(node.component?.props ?? {}, propertyNames);
+    return findTextProperty(getCanonicalComponentUse(node)?.props ?? {}, propertyNames);
   }
 
   const overrideEntries = Object.entries(node.designSystem?.instance?.overrides ?? {});
@@ -680,29 +1183,308 @@ function findOverrideText(
 }
 
 function getVariantLabels(node: DesignNode): string[] {
-  const variantEntries = isV02Node(node)
-    ? Object.entries(node.component?.variant ?? {})
-    : Object.entries(node.designSystem?.instance?.variant ?? {});
+  const variantEntries = Object.entries(getInstanceVariants(node));
 
   return variantEntries
     .slice(0, 4)
     .map(([key, value]) => `${sanitizeVariantLabel(key)}: ${value}`);
 }
 
-function renderBackground(
+function findInstanceValue(
+  node: DesignNode,
+  propertyName: string
+): string | boolean | null {
+  return (
+    findPropertyValue(getInstanceProperties(node), propertyName) ??
+    findVariantValue(getInstanceVariants(node), propertyName)
+  );
+}
+
+function isFalseLike(value: string | boolean | null): boolean {
+  return value === false || (typeof value === "string" && value.toLowerCase() === "false");
+}
+
+function getTextAlignment(node: DesignNode): TextAlignment {
+  if (isV02Node(node)) {
+    return {
+      horizontal: "left",
+      vertical: "top"
+    };
+  }
+
+  const horizontal = node.content?.text?.alignment?.horizontal;
+  const vertical = node.content?.text?.alignment?.vertical;
+
+  return {
+    horizontal:
+      horizontal === "center"
+        ? "center"
+        : horizontal === "right"
+          ? "right"
+          : "left",
+    vertical:
+      vertical === "center"
+        ? "center"
+        : vertical === "bottom"
+          ? "bottom"
+          : "top"
+  };
+}
+
+function getTextLineLimit(node: DesignNode, metrics: TextMetrics, document: DesignDocument): number | undefined {
+  if (isV02Node(node) && typeof node.text === "object" && node.text.lines !== undefined) {
+    return node.text.lines;
+  }
+
+  if (!isV02Node(node) && node.content?.text?.maxLines !== undefined) {
+    return node.content.text.maxLines;
+  }
+
+  const { height } = getNodeSize(node, document);
+
+  return height > 0 ? Math.max(Math.floor(height / metrics.lineHeight), 1) : undefined;
+}
+
+function getIntrinsicTextNodeSize(
   document: DesignDocument,
+  node: DesignNode
+): NodeSize | null {
+  if (node.kind !== "text") {
+    return null;
+  }
+
+  const textValue = isV02Node(node)
+    ? getCanonicalTextValue(node) ?? node.name ?? ""
+    : node.content?.text?.characters ?? node.name;
+  const metrics = resolveTextMetrics(document, node);
+  const lines = textValue.replaceAll("\r\n", "\n").split("\n");
+  const longestLine = lines.reduce(
+    (maxWidth, line) =>
+      Math.max(maxWidth, estimateTextWidth(line, metrics.fontSize, metrics.letterSpacing)),
+    0
+  );
+
+  return {
+    height: Math.max(Math.ceil(lines.length * metrics.lineHeight), Math.ceil(metrics.lineHeight)),
+    width: Math.max(Math.ceil(longestLine), 1)
+  };
+}
+
+function getIntrinsicInstanceSize(
+  document: DesignDocument,
+  node: DesignNode
+): NodeSize | null {
+  if (node.kind !== "instance") {
+    return null;
+  }
+
+  const metadata = getInstanceMetadata(document, node);
+  const componentName =
+    metadata?.componentName.toLowerCase() ?? (node.name ?? "instance").toLowerCase();
+  const setName = metadata?.componentSetName?.toLowerCase() ?? componentName;
+
+  if (componentName.includes("status-bar")) {
+    return {
+      height: 24,
+      width: 360
+    };
+  }
+
+  if (setName === "app bar") {
+    const configuration = String(findVariantValue(getInstanceVariants(node), "Configuration") ?? "").toLowerCase();
+
+    return {
+      height: configuration.includes("medium") ? 112 : configuration.includes("large") ? 152 : 64,
+      width: 360
+    };
+  }
+
+  if (setName === "carousel") {
+    return {
+      height: 188,
+      width: 360
+    };
+  }
+
+  if (setName === "icon button - standard") {
+    return {
+      height: 40,
+      width: 40
+    };
+  }
+
+  if (componentName.includes("list item")) {
+    const condition = String(findVariantValue(getInstanceVariants(node), "Condition") ?? "");
+
+    return {
+      height: condition.includes("3") ? 88 : condition.includes("2") ? 72 : 56,
+      width: 360
+    };
+  }
+
+  if (componentName.includes("navigation")) {
+    return {
+      height: 24,
+      width: 360
+    };
+  }
+
+  if (componentName.includes("divider")) {
+    return {
+      height: 1,
+      width: 360
+    };
+  }
+
+  if (componentName.includes("star")) {
+    return {
+      height: 20,
+      width: 20
+    };
+  }
+
+  if (componentName.includes("favorite")) {
+    return {
+      height: 24,
+      width: 24
+    };
+  }
+
+  if (componentName.includes("chip")) {
+    const label =
+      findOverrideText(node, ["Label", "Label text"]) ??
+      findTextProperty(getInstanceProperties(node), ["Label", "Label text"]) ??
+      "Chip";
+
+    return {
+      height: 32,
+      width: Math.max(Math.ceil(estimateTextWidth(label, 14, 0.1) + 36), 72)
+    };
+  }
+
+  if (componentName.includes("button")) {
+    const label =
+      findOverrideText(node, ["Label text", "Label", "Headline"]) ??
+      findTextProperty(getInstanceProperties(node), ["Label text", "Label", "Headline"]) ??
+      findFirstTextProperty(getInstanceProperties(node)) ??
+      node.name ??
+      "Button";
+
+    return {
+      height: 40,
+      width: Math.max(Math.ceil(estimateTextWidth(label, 14) + 28), 72)
+    };
+  }
+
+  return null;
+}
+
+function getIntrinsicNodeSize(
+  document: DesignDocument,
+  node: DesignNode
+): NodeSize | null {
+  return getIntrinsicTextNodeSize(document, node) ?? getIntrinsicInstanceSize(document, node);
+}
+
+function getNodeOpacity(node: DesignNode): number | undefined {
+  return isV02Node(node) ? node.style?.opacity : node.appearance?.opacity;
+}
+
+function shouldClipNode(node: DesignNode): boolean {
+  if (isV02Node(node)) {
+    return node.layout?.scroll !== undefined;
+  }
+
+  if (
+    node.layout?.overflow &&
+    Object.values(node.layout.overflow).some(
+      (value) => value === "hidden" || value === "scroll"
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function registerNodeClipPath(
+  context: RenderContext,
+  node: DesignNode,
+  width: number,
+  height: number
+): string {
+  const radius = getRadiusValue(node);
+
+  return registerDefinition(
+    context,
+    "clip",
+    (id) =>
+      `<clipPath id="${id}"><rect width="${formatNumber(width)}" height="${formatNumber(
+        height
+      )}" rx="${formatNumber(radius)}" /></clipPath>`
+  );
+}
+
+function getNodeShadowFilter(
+  context: RenderContext,
+  node: DesignNode
+): string | null {
+  if (isV02Node(node)) {
+    return null;
+  }
+
+  const shadow = node.appearance?.effects?.find((effect) => effect.type === "DROP_SHADOW");
+
+  if (!shadow || !isRecord(shadow.fallback) || !isRecord(shadow.fallback.color)) {
+    return null;
+  }
+
+  const shadowFallback = shadow.fallback;
+  const color = shadowFallback.color as Record<string, unknown>;
+
+  if (
+    typeof color.r !== "number" ||
+    typeof color.g !== "number" ||
+    typeof color.b !== "number"
+  ) {
+    return null;
+  }
+
+  const red = color.r;
+  const green = color.g;
+  const blue = color.b;
+  const shadowOpacity = typeof color.a === "number" ? clamp(color.a, 0, 1) : 0.18;
+  const offset = isRecord(shadowFallback.offset) ? shadowFallback.offset : {};
+  const dx = typeof offset.x === "number" ? offset.x : 0;
+  const dy = typeof offset.y === "number" ? offset.y : 1;
+  const radius = typeof shadowFallback.radius === "number" ? shadowFallback.radius : 3;
+  const id = registerDefinition(context, "shadow", (definitionId) => {
+    const shadowColor = rgbToHex({
+      b: blue,
+      g: green,
+      r: red
+    });
+
+    return `<filter id="${definitionId}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="${formatNumber(
+      dx
+    )}" dy="${formatNumber(dy)}" stdDeviation="${formatNumber(
+      Math.max(radius / 2, 0.5)
+    )}" flood-color="${shadowColor}" flood-opacity="${formatNumber(shadowOpacity)}" /></filter>`;
+  });
+
+  return `url(#${id})`;
+}
+
+function renderBackground(
+  context: RenderContext,
   node: DesignNode,
   width: number,
   height: number,
   fallbackFill: string | null
 ): string {
-  const fill = getPrimaryPaintColor(
-    document,
-    isV02Node(node) ? node.style?.fill : node.appearance?.background,
-    fallbackFill ?? "transparent"
-  );
+  const fill = resolvePaintFill(context, node, fallbackFill ?? "transparent");
   const radius = getRadiusValue(node);
-  const strokeAppearance = getStrokeAppearance(document, node);
+  const strokeAppearance = getStrokeAppearance(context.document, node);
   const inset = strokeAppearance?.width ? strokeAppearance.width / 2 : 0;
   const rectWidth = Math.max(width - inset * 2, 1);
   const rectHeight = Math.max(height - inset * 2, 1);
@@ -711,7 +1493,9 @@ function renderBackground(
     inset
   )}" width="${formatNumber(rectWidth)}" height="${formatNumber(
     rectHeight
-  )}" rx="${formatNumber(radius)}" fill="${escapeXml(fill)}"${
+  )}" rx="${formatNumber(radius)}" fill="${escapeXml(fill.value)}"${
+    fill.opacity !== undefined ? ` fill-opacity="${formatNumber(fill.opacity)}"` : ""
+  }${
     strokeAppearance
       ? ` stroke="${escapeXml(strokeAppearance.color)}" stroke-width="${formatNumber(
           strokeAppearance.width
@@ -722,10 +1506,10 @@ function renderBackground(
 
 function renderTextNode(node: DesignNode, context: RenderContext): string {
   context.stats.textNodeCount += 1;
-  const { width } = getNodeSize(node);
+  const { height, width } = getNodeSize(node, context.document);
 
   const textValue = isV02Node(node)
-    ? node.text?.value ?? node.name ?? ""
+    ? getCanonicalTextValue(node) ?? node.name ?? ""
     : node.content?.text?.characters ?? node.name;
   const textColor = isV02Node(node)
     ? getPrimaryPaintColor(
@@ -739,17 +1523,38 @@ function renderTextNode(node: DesignNode, context: RenderContext): string {
         FALLBACK_TEXT
       );
   const metrics = resolveTextMetrics(context.document, node);
-  const wrappedLines = wrapText(
-    textValue,
-    Math.max(Math.floor(width / (metrics.fontSize * 0.35)), 1)
-  );
+  const alignment = getTextAlignment(node);
+  const maxLines = getTextLineLimit(node, metrics, context.document);
+  const wrappedLines = wrapText(textValue, Math.max(width, metrics.fontSize), metrics, maxLines);
+  const totalTextHeight = wrappedLines.length * metrics.lineHeight;
+  const textAnchor =
+    alignment.horizontal === "center"
+      ? "middle"
+      : alignment.horizontal === "right"
+        ? "end"
+        : "start";
+  const textX =
+    alignment.horizontal === "center"
+      ? width / 2
+      : alignment.horizontal === "right"
+        ? width
+        : 0;
+  const startY =
+    alignment.vertical === "center"
+      ? Math.max((height - totalTextHeight) / 2, 0)
+      : alignment.vertical === "bottom"
+        ? Math.max(height - totalTextHeight, 0)
+        : 0;
 
   return wrappedLines
     .map((line, index) =>
-      renderLabelText(0, index * metrics.lineHeight, line, {
+      renderLabelText(textX, startY + index * metrics.lineHeight, line, {
         color: textColor,
+        fontFamily: metrics.fontFamily,
         fontSize: metrics.fontSize,
-        fontWeight: metrics.fontWeight
+        fontWeight: metrics.fontWeight,
+        letterSpacing: metrics.letterSpacing,
+        textAnchor
       })
     )
     .join("");
@@ -770,14 +1575,15 @@ function renderStatusBar(width: number): string {
 }
 
 function renderAppBar(width: number, height: number, node: DesignNode): string {
-  const showFirst = findPropertyValue(getInstanceProperties(node), "Show 1st trailing action") !== false;
-  const showSecond =
-    findPropertyValue(getInstanceProperties(node), "Show 2nd trailing action") !== false;
-  const showThird = findPropertyValue(getInstanceProperties(node), "Show 3rd trailing action") !== false;
+  const showFirst = !isFalseLike(findInstanceValue(node, "Show 1st trailing action"));
+  const showSecond = !isFalseLike(findInstanceValue(node, "Show 2nd trailing action"));
+  const showThird = !isFalseLike(findInstanceValue(node, "Show 3rd trailing action"));
   const labels = ["App bar", ...getVariantLabels(node).slice(0, 2)];
   const actionCenters = [width - 36, width - 84, width - 132];
   const visibleActions = [showFirst, showSecond, showThird];
   const labelY = height >= 100 ? 58 : 30;
+  const firstChipWidth = labels[1] ? getChipWidth(labels[1]) : 0;
+  const secondChipX = 20 + firstChipWidth + 12;
 
   return [
     renderLabelText(20, labelY, labels[0] ?? node.name ?? "App bar", {
@@ -785,7 +1591,7 @@ function renderAppBar(width: number, height: number, node: DesignNode): string {
       fontWeight: 500
     }),
     labels[1] ? renderChip(20, labelY + 40, labels[1]) : "",
-    labels[2] ? renderChip(120, labelY + 40, labels[2]) : "",
+    labels[2] ? renderChip(secondChipX, labelY + 40, labels[2]) : "",
     `<path d="M 28 ${formatNumber(labelY + 16)} L 16 ${formatNumber(
       labelY + 8
     )} L 28 ${formatNumber(labelY)}" fill="none" stroke="${FALLBACK_TEXT}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />`,
@@ -843,10 +1649,11 @@ function renderTextButton(width: number, height: number, node: DesignNode): stri
     `<rect x="0.5" y="0.5" width="${formatNumber(width - 1)}" height="${formatNumber(
       height - 1
     )}" rx="${formatNumber(Math.min(height / 2, 20))}" fill="transparent" />`,
-    renderLabelText(Math.max(width - label.length * 8.4 - 6, 4), Math.max((height - 20) / 2, 0), label, {
+    renderLabelText(width / 2, Math.max((height - 20) / 2, 0), label, {
       color: FALLBACK_PRIMARY,
       fontSize: 14,
-      fontWeight: 600
+      fontWeight: 600,
+      textAnchor: "middle"
     })
   ].join("");
 }
@@ -856,24 +1663,38 @@ function mapIconNameToGlyph(value: string | null): string {
     return "•";
   }
 
-  if (value.includes("arrow_back")) {
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes("arrow_back")) {
     return "←";
   }
 
-  if (value.includes("arrow_forward")) {
+  if (normalized.includes("arrow_forward") || normalized.includes("chevron_right")) {
     return "→";
   }
 
-  if (value.includes("attach_file")) {
+  if (normalized.includes("attach_file")) {
     return "⌘";
   }
 
-  if (value.includes("today")) {
+  if (normalized.includes("today")) {
     return "◫";
   }
 
-  if (value.includes("more_vert")) {
+  if (normalized.includes("more_vert")) {
     return "⋮";
+  }
+
+  if (normalized.includes("favorite")) {
+    return "♥";
+  }
+
+  if (normalized.includes("star")) {
+    return "★";
+  }
+
+  if (normalized.includes("search")) {
+    return "⌕";
   }
 
   return "•";
@@ -904,9 +1725,9 @@ function renderListItem(width: number, height: number, node: DesignNode): string
     findTextProperty(properties, ["Supporting text"]) ?? "Supporting line text";
   const overline = findTextProperty(properties, ["Overline"]);
   const trailingText = findTextProperty(properties, ["Trailing supporting text"]);
-  const leadingVariant = findPropertyValue(properties, "Leading");
-  const trailingVariant = findPropertyValue(properties, "Trailing");
-  const showDivider = findPropertyValue(properties, "Show divider") !== false;
+  const leadingVariant = findInstanceValue(node, "Leading");
+  const trailingVariant = findInstanceValue(node, "Trailing");
+  const showDivider = !isFalseLike(findInstanceValue(node, "Show divider"));
   const textLeft = leadingVariant === "Image" ? 88 : 24;
   const titleY = overline ? 28 : 22;
 
@@ -954,6 +1775,48 @@ function renderListItem(width: number, height: number, node: DesignNode): string
   ].join("");
 }
 
+function renderDivider(width: number, height: number): string {
+  const y = Math.max(height / 2, 0.5);
+
+  return `<line x1="0" y1="${formatNumber(y)}" x2="${formatNumber(width)}" y2="${formatNumber(
+    y
+  )}" stroke="${FALLBACK_STROKE}" stroke-width="1" />`;
+}
+
+function renderSymbolIcon(
+  width: number,
+  height: number,
+  glyph: string,
+  color = FALLBACK_TEXT
+): string {
+  const glyphSize = clamp(Math.min(width, height) * 0.9, 14, 22);
+
+  return renderLabelText(width / 2, Math.max((height - glyphSize) / 2, 0), glyph, {
+    color,
+    fontSize: glyphSize,
+    fontWeight: 500,
+    textAnchor: "middle"
+  });
+}
+
+function renderAssistiveChip(width: number, height: number, node: DesignNode): string {
+  const label =
+    findOverrideText(node, ["Label", "Label text"]) ??
+    findTextProperty(getInstanceProperties(node), ["Label", "Label text"]) ??
+    (node.name ?? "Chip").replace(/\s+\d+$/, "");
+
+  return [
+    `<rect x="0.5" y="0.5" width="${formatNumber(width - 1)}" height="${formatNumber(
+      height - 1
+    )}" rx="${formatNumber(height / 2)}" fill="#f7f2fa" stroke="${FALLBACK_STROKE}" stroke-width="1" />`,
+    renderLabelText(16, Math.max((height - 16) / 2, 0), label, {
+      color: FALLBACK_TEXT,
+      fontSize: 14,
+      fontWeight: 500
+    })
+  ].join("");
+}
+
 function renderGestureBar(width: number, height: number): string {
   const barWidth = Math.min(Math.max(width * 0.24, 92), 132);
 
@@ -990,33 +1853,67 @@ function renderFallbackInstance(width: number, height: number, node: DesignNode)
 
 function renderInstanceNode(node: DesignNode, context: RenderContext): string {
   context.stats.instanceCount += 1;
-  const { width, height } = getNodeSize(node);
+  const { width, height } = getNodeSize(node, context.document);
   const metadata = getInstanceMetadata(context.document, node);
   const setName = metadata?.componentSetName?.toLowerCase() ?? "";
   const fallbackName = node.name ?? "instance";
   const componentName = metadata?.componentName.toLowerCase() ?? fallbackName.toLowerCase();
+  const { markup, materialized } = (() => {
+    if (componentName.includes("status-bar")) {
+      return { markup: renderStatusBar(width), materialized: true };
+    }
 
-  let markup = "";
-  let materialized = true;
+    if (setName === "app bar") {
+      return { markup: renderAppBar(width, height, node), materialized: true };
+    }
 
-  if (componentName.includes("status-bar")) {
-    markup = renderStatusBar(width);
-  } else if (setName === "app bar") {
-    markup = renderAppBar(width, height, node);
-  } else if (setName === "carousel") {
-    markup = renderCarousel(width, height);
-  } else if (setName === "icon button - standard") {
-    markup = renderIconButton(width, height, node);
-  } else if (fallbackName.toLowerCase().includes("button")) {
-    markup = renderTextButton(width, height, node);
-  } else if (componentName.includes("navigation")) {
-    markup = renderGestureBar(width, height);
-  } else if (componentName.includes("condition=3 line+")) {
-    markup = renderListItem(width, height, node);
-  } else {
-    markup = renderFallbackInstance(width, height, node);
-    materialized = false;
-  }
+    if (setName === "carousel") {
+      return { markup: renderCarousel(width, height), materialized: true };
+    }
+
+    if (setName === "icon button - standard") {
+      return { markup: renderIconButton(width, height, node), materialized: true };
+    }
+
+    if (componentName.includes("favorite")) {
+      return {
+        markup: renderSymbolIcon(width, height, "♥", "#b3261e"),
+        materialized: true
+      };
+    }
+
+    if (componentName.includes("star")) {
+      return {
+        markup: renderSymbolIcon(width, height, "★", "#f59f00"),
+        materialized: true
+      };
+    }
+
+    if (componentName.includes("divider")) {
+      return { markup: renderDivider(width, height), materialized: true };
+    }
+
+    if (setName.includes("chip") || componentName.includes("chip")) {
+      return { markup: renderAssistiveChip(width, height, node), materialized: true };
+    }
+
+    if (componentName.includes("button") || fallbackName.toLowerCase().includes("button")) {
+      return { markup: renderTextButton(width, height, node), materialized: true };
+    }
+
+    if (componentName.includes("navigation")) {
+      return { markup: renderGestureBar(width, height), materialized: true };
+    }
+
+    if (componentName.includes("list item") || setName.includes("list item")) {
+      return { markup: renderListItem(width, height, node), materialized: true };
+    }
+
+    return {
+      markup: renderFallbackInstance(width, height, node),
+      materialized: false
+    };
+  })();
 
   if (materialized) {
     context.stats.materializedInstanceCount += 1;
@@ -1025,13 +1922,13 @@ function renderInstanceNode(node: DesignNode, context: RenderContext): string {
   }
 
   return [
-    renderBackground(context.document, node, width, height, materialized ? null : "#f7f2fa"),
+    renderBackground(context, node, width, height, materialized ? null : "#f7f2fa"),
     markup
   ].join("");
 }
 
 function renderChildren(node: DesignNode, context: RenderContext): string {
-  const inferredPositions = getFlowLayoutPositions(node);
+  const inferredPositions = getFlowLayoutPositions(node, context.document);
 
   return (node.children ?? [])
     .map((child) => {
@@ -1051,27 +1948,50 @@ function renderNode(
   const { x, y } = options.ignorePosition
     ? { x: 0, y: 0 }
     : options.position ?? getNodePosition(node);
-  const { width, height } = getNodeSize(node);
-  let content = "";
+  const { width, height } = getNodeSize(node, context.document);
+  const opacity = getNodeOpacity(node);
+  const shadowFilter = getNodeShadowFilter(context, node);
+  const content =
+    node.kind === "text"
+      ? renderTextNode(node, context)
+      : node.kind === "instance"
+        ? renderInstanceNode(node, context)
+        : (() => {
+            const children = renderChildren(node, context);
+            const clipId = shouldClipNode(node)
+              ? registerNodeClipPath(context, node, width, height)
+              : null;
 
-  if (node.kind === "text") {
-    content = renderTextNode(node, context);
-  } else if (node.kind === "instance") {
-    content = renderInstanceNode(node, context);
-  } else {
-    const fallbackFill = node.kind === "frame" ? FALLBACK_SURFACE : null;
-    const background = renderBackground(context.document, node, width, height, fallbackFill);
-    const children = renderChildren(node, context);
+            return `${renderBackground(
+              context,
+              node,
+              width,
+              height,
+              node.kind === "frame" ? FALLBACK_SURFACE : null
+            )}${clipId ? `<g clip-path="url(#${clipId})">${children}</g>` : children}`;
+          })();
+  const attributes = [
+    `transform="translate(${formatNumber(x)}, ${formatNumber(y)})"`,
+    opacity !== undefined ? `opacity="${formatNumber(opacity)}"` : "",
+    shadowFilter ? `filter="${shadowFilter}"` : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-    content = `${background}${children}`;
-  }
+  return `<g ${attributes}>${content}</g>`;
+}
 
-  return `<g transform="translate(${formatNumber(x)}, ${formatNumber(y)})">${content}</g>`;
+function getDocumentPageLabel(document: DesignDocument): string {
+  return isDesignDocumentV0_1(document)
+    ? document.capture.page.name
+    : document.capture.page;
 }
 
 export function renderDesignDocumentSnapshot(document: DesignDocument): SnapshotRenderResult {
   const context: RenderContext = {
+    defs: [],
     document,
+    nextDefId: 0,
     stats: {
       fallbackInstanceCount: 0,
       materializedInstanceCount: 0,
@@ -1080,7 +2000,7 @@ export function renderDesignDocumentSnapshot(document: DesignDocument): Snapshot
       textNodeCount: 0
     }
   };
-  const rootSizes = document.roots.map((root) => getNodeSize(root));
+  const rootSizes = document.roots.map((root) => getNodeSize(root, document));
   const widestRoot = rootSizes.reduce((current, rootSize) => Math.max(current, rootSize.width), 0);
   const totalRootHeight =
     rootSizes.reduce((current, rootSize) => current + rootSize.height, 0) +
@@ -1112,6 +2032,7 @@ export function renderDesignDocumentSnapshot(document: DesignDocument): Snapshot
       )}" height="${formatNumber(height)}" viewBox="0 0 ${formatNumber(
         width
       )} ${formatNumber(height)}" fill="none">`,
+      context.defs.length > 0 ? `<defs>${context.defs.join("")}</defs>` : "",
       `<rect width="${formatNumber(width)}" height="${formatNumber(
         height
       )}" fill="#f3edf7" />`,
@@ -1120,4 +2041,93 @@ export function renderDesignDocumentSnapshot(document: DesignDocument): Snapshot
     ].join(""),
     width
   };
+}
+
+export function renderDesignDocumentSnapshotHtml(
+  document: DesignDocument,
+  renderResult = renderDesignDocumentSnapshot(document)
+): string {
+  const pageLabel = escapeXml(getDocumentPageLabel(document));
+
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "  <head>",
+    '    <meta charset="utf-8" />',
+    '    <meta name="viewport" content="width=device-width, initial-scale=1" />',
+    `    <title>${pageLabel} Snapshot</title>`,
+    "    <style>",
+    "      :root {",
+    "        color-scheme: light;",
+    "        font-family: Inter, 'SF Pro Display', 'Segoe UI', sans-serif;",
+    "      }",
+    "      * { box-sizing: border-box; }",
+    "      body {",
+    "        margin: 0;",
+    "        min-height: 100vh;",
+    "        background: linear-gradient(180deg, #f7f1e9 0%, #ece4d8 100%);",
+    "        color: #1b1d18;",
+    "      }",
+    "      main {",
+    "        max-width: 1200px;",
+    "        margin: 0 auto;",
+    "        padding: 32px 24px 48px;",
+    "      }",
+    "      .header {",
+    "        display: flex;",
+    "        justify-content: space-between;",
+    "        align-items: flex-end;",
+    "        gap: 16px;",
+    "        margin-bottom: 24px;",
+    "      }",
+    "      h1 {",
+    "        margin: 0;",
+    "        font-size: 28px;",
+    "        line-height: 1.05;",
+    "      }",
+    "      .meta {",
+    "        display: flex;",
+    "        gap: 12px;",
+    "        flex-wrap: wrap;",
+    "        color: #5d6158;",
+    "        font-size: 13px;",
+    "      }",
+    "      .chip {",
+    "        padding: 8px 12px;",
+    "        border-radius: 999px;",
+    "        background: rgba(255,255,255,0.75);",
+    "        border: 1px solid rgba(27, 29, 24, 0.08);",
+    "      }",
+    "      .canvas {",
+    "        overflow: auto;",
+    "        padding: 20px;",
+    "        border-radius: 20px;",
+    "        background: rgba(255,255,255,0.6);",
+    "        border: 1px solid rgba(27, 29, 24, 0.08);",
+    "        box-shadow: 0 18px 48px rgba(64, 52, 40, 0.12);",
+    "      }",
+    "      .canvas svg {",
+    "        display: block;",
+    "        max-width: 100%;",
+    "        height: auto;",
+    "      }",
+    "    </style>",
+    "  </head>",
+    "  <body>",
+    "    <main>",
+    '      <div class="header">',
+    `        <div><h1>${pageLabel}</h1></div>`,
+    '        <div class="meta">',
+    `          <div class="chip">${renderResult.stats.nodeCount} nodes</div>`,
+    `          <div class="chip">${renderResult.stats.instanceCount} instances</div>`,
+    `          <div class="chip">${renderResult.width} x ${renderResult.height}</div>`,
+    "        </div>",
+    "      </div>",
+    '      <div class="canvas">',
+    renderResult.svg,
+    "      </div>",
+    "    </main>",
+    "  </body>",
+    "</html>"
+  ].join("\n");
 }

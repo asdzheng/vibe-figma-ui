@@ -5,7 +5,11 @@ import {
   loadCaptureFixtureDocument,
   loadSampleCaptureDocument
 } from "@vibe-figma/fixtures";
-import { designDocumentSchema, isDesignDocumentV0_1 } from "@vibe-figma/schema";
+import {
+  designDocumentSchema,
+  designDocumentV0_2Schema,
+  isDesignDocumentV0_1
+} from "@vibe-figma/schema";
 
 describe("designDocumentSchema", () => {
   test.each(captureFixtureNames)(
@@ -48,5 +52,37 @@ describe("designDocumentSchema", () => {
     delete invalid.registries.components["component:button-primary"];
 
     expect(() => designDocumentSchema.parse(invalid)).toThrow(/componentRef/i);
+  });
+
+  test("accepts canonical v0.2 shorthand forms for literal values, components, and text", () => {
+    expect(() =>
+      designDocumentV0_2Schema.parse({
+        capture: {
+          page: "Checkout",
+          roots: ["2:1"],
+          scope: "selection"
+        },
+        profile: "canonical",
+        roots: [
+          {
+            component: "Button / Primary",
+            id: "2:1",
+            kind: "instance",
+            style: {
+              fill: "#0f62fe"
+            }
+          },
+          {
+            kind: "text",
+            style: {
+              textColor: "#1d1b20ff",
+              textStyle: "M3/title/large"
+            },
+            text: "Checkout"
+          }
+        ],
+        schemaVersion: "0.2"
+      })
+    ).not.toThrow();
   });
 });

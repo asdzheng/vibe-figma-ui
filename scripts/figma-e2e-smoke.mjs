@@ -50,7 +50,13 @@ export function parseFigmaE2eArgs(argv) {
       continue;
     }
 
-    if (argument === "--companion-url" || argument === "--bridge-url") {
+    if (argument === "--bridge-url" || argument.startsWith("--bridge-url=")) {
+      throw new Error(
+        "`--bridge-url` has been removed. Use `--companion-url` instead."
+      );
+    }
+
+    if (argument === "--companion-url") {
       companionBaseUrl = normalizeCompanionBaseUrl(
         parseOptionValue(argument, argv[index + 1])
       );
@@ -58,16 +64,11 @@ export function parseFigmaE2eArgs(argv) {
       continue;
     }
 
-    if (
-      argument.startsWith("--companion-url=") ||
-      argument.startsWith("--bridge-url=")
-    ) {
+    if (argument.startsWith("--companion-url=")) {
       companionBaseUrl = normalizeCompanionBaseUrl(
         parseOptionValue(
-          argument.startsWith("--companion-url=")
-            ? "--companion-url"
-            : "--bridge-url",
-          argument.slice(argument.indexOf("=") + 1)
+          "--companion-url",
+          argument.slice("--companion-url=".length)
         )
       );
       continue;
@@ -195,38 +196,105 @@ function isRecord(value) {
   return typeof value === "object" && value !== null;
 }
 
-function summarizeCapture(document) {
+function extractStatusPluginVersion(status) {
+  if (!isRecord(status)) {
+    return "";
+  }
+
+  const current = isRecord(status.current) ? status.current : {};
+  const currentStatus = isRecord(current.status) ? current.status : {};
+
+  if (typeof currentStatus.pluginVersion === "string") {
+    return currentStatus.pluginVersion;
+  }
+
+  const sessions = Array.isArray(status.sessions) ? status.sessions : [];
+  const activeSession = sessions.find(
+    (session) => isRecord(session) && session.isActive === true
+  );
+
+  if (isRecord(activeSession) && typeof activeSession.pluginVersion === "string") {
+    return activeSession.pluginVersion;
+  }
+
+  return "";
+}
+
+function extractStatusPageName(status) {
+  if (!isRecord(status)) {
+    return "";
+  }
+
+  const current = isRecord(status.current) ? status.current : {};
+  const currentStatus = isRecord(current.status) ? current.status : {};
+  const page = isRecord(currentStatus.page) ? currentStatus.page : {};
+
+  if (typeof page.name === "string") {
+    return page.name;
+  }
+
+  return "";
+}
+
+function extractStatusSelectionCount(status) {
+  if (!isRecord(status)) {
+    return 0;
+  }
+
+  const current = isRecord(status.current) ? status.current : {};
+  const currentStatus = isRecord(current.status) ? current.status : {};
+
+  return typeof currentStatus.selectionCount === "number"
+    ? currentStatus.selectionCount
+    : 0;
+}
+
+function summarizeCapture(document, context = {}) {
   const capture = isRecord(document.capture) ? document.capture : {};
-  const page = isRecord(capture.page) ? capture.page : {};
   const diagnostics = isRecord(document.diagnostics) ? document.diagnostics : {};
   const warnings = Array.isArray(diagnostics.warnings) ? diagnostics.warnings : [];
   const roots = Array.isArray(document.roots) ? document.roots : [];
-  const selection = Array.isArray(capture.selection) ? capture.selection : [];
+  const selection = Array.isArray(capture.selection)
+    ? capture.selection
+    : Array.isArray(capture.roots)
+      ? capture.roots
+      : [];
+  const pageName =
+    typeof capture.page === "string"
+      ? capture.page
+      : isRecord(capture.page) && typeof capture.page.name === "string"
+        ? capture.page.name
+        : extractStatusPageName(context.status);
+  const pluginVersion =
+    typeof capture.pluginVersion === "string" && capture.pluginVersion
+      ? capture.pluginVersion
+      : extractStatusPluginVersion(context.status);
+  const selectionCount =
+    selection.length > 0 ? selection.length : extractStatusSelectionCount(context.status);
 
   return {
     diagnosticsCount: warnings.length,
-    pageName: typeof page.name === "string" ? page.name : "",
-    pluginVersion:
-      typeof capture.pluginVersion === "string" ? capture.pluginVersion : "",
+    pageName,
+    pluginVersion,
     rootCount: roots.length,
     schemaVersion:
       typeof document.schemaVersion === "string" ? document.schemaVersion : "",
-    selectionCount: selection.length
+    selectionCount
   };
 }
 
-export function validateSmokeCapture(document, options) {
+export function validateSmokeCapture(document, options, context = {}) {
   const errors = [];
 
   if (!isRecord(document)) {
     return {
       errors: ["Captured document is not an object."],
       ok: false,
-      summary: summarizeCapture({})
+      summary: summarizeCapture({}, context)
     };
   }
 
-  const summary = summarizeCapture(document);
+  const summary = summarizeCapture(document, context);
 
   if (!summary.schemaVersion) {
     errors.push("Design document is missing schemaVersion.");
@@ -379,7 +447,7 @@ export async function runFigmaSmokeTest(options, dependencies = {}) {
 
   const captureResponse = await requestCapture(fetchImpl, options.companionBaseUrl);
   const document = isRecord(captureResponse) ? captureResponse.document : null;
-  const validation = validateSmokeCapture(document, options);
+  const validation = validateSmokeCapture(document, options, { status });
   const report = {
     capturedAt:
       isRecord(captureResponse) && typeof captureResponse.capturedAt === "string"

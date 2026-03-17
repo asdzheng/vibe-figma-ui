@@ -1,6 +1,7 @@
 import {
   COMPANION_PLUGIN_SESSIONS_PATH,
   DEFAULT_COMPANION_BASE_URL,
+  DEFAULT_COMMAND_TIMEOUT_MS,
   DEFAULT_LONG_POLL_MS,
   type RuntimeCommand,
   type RuntimeCommandResult
@@ -33,9 +34,10 @@ export function renderPluginUiHtml(options: {
     companionBaseUrl: normalizeCompanionBaseUrl(
       options.companionBaseUrl ?? DEFAULT_COMPANION_BASE_URL
     ),
+    commandTimeoutMs: DEFAULT_COMMAND_TIMEOUT_MS + 5_000,
     longPollMs: DEFAULT_LONG_POLL_MS,
     pluginSessionsPath: COMPANION_PLUGIN_SESSIONS_PATH,
-    pluginVersion: options.pluginVersion ?? "0.8.0"
+    pluginVersion: options.pluginVersion ?? "0.9.0"
   });
 
   return `<!doctype html>
@@ -497,7 +499,7 @@ export function renderPluginUiHtml(options: {
           const timer = setTimeout(() => {
             commandResolvers.delete(command.id);
             reject(new Error(\`Timed out waiting for plugin worker result for \${command.method}.\`));
-          }, 60000);
+          }, config.commandTimeoutMs);
 
           commandResolvers.set(command.id, {
             reject: (error) => {

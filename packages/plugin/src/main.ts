@@ -1,8 +1,10 @@
 import type {
   RuntimeCommand,
+  RuntimeCommandDiagnostic,
   RuntimeCommandResult,
   RuntimeStatus
 } from "@vibe-figma/cli/transport";
+import { defaultComponentPolicyRules } from "@vibe-figma/capture-core";
 import type { DesignDocument } from "@vibe-figma/schema";
 
 import type { BuildSelectionCaptureInput } from "./model.js";
@@ -13,7 +15,7 @@ import {
   type PluginUiToMainMessage
 } from "./ui.js";
 
-export const PLUGIN_VERSION = "0.8.0";
+export const PLUGIN_VERSION = "0.9.0";
 export const PLUGIN_UI_SIZE = {
   height: 520,
   width: 420
@@ -90,7 +92,12 @@ async function buildCurrentSelectionCapture(
   pluginApi: PluginRuntimeHost,
   options: InitializePluginRuntimeOptions = {}
 ): Promise<DesignDocument> {
-  return buildSelectionCaptureFromRuntimeAsync({
+  const baseInput = {
+    ...(options.componentContextByRef
+      ? { componentContextByRef: options.componentContextByRef }
+      : {}),
+    componentPolicyRules:
+      options.componentPolicyRules ?? defaultComponentPolicyRules,
     page: {
       id: pluginApi.currentPage.id,
       name: pluginApi.currentPage.name
@@ -100,6 +107,17 @@ async function buildCurrentSelectionCapture(
     selection: pluginApi.currentPage.selection,
     ...(options.sourceFileKey ? { sourceFileKey: options.sourceFileKey } : {}),
     ...(options.timestamp ? { timestamp: options.timestamp } : {})
+  };
+
+  if (options.profile === "debug") {
+    return buildSelectionCaptureFromRuntimeAsync({
+      ...baseInput,
+      profile: "debug"
+    });
+  }
+
+  return buildSelectionCaptureFromRuntimeAsync({
+    ...baseInput
   });
 }
 
@@ -135,6 +153,22 @@ function buildRuntimeStatus(pluginApi: PluginRuntimeHost): RuntimeStatus {
   };
 }
 
+function buildCaptureDiagnostic(pluginApi: PluginRuntimeHost): RuntimeCommandDiagnostic {
+  return {
+    page: {
+      id: pluginApi.currentPage.id,
+      name: pluginApi.currentPage.name
+    },
+    recoverable: true,
+    scope: "plugin-worker",
+    selectionCount: pluginApi.currentPage.selection.length,
+    suggestion:
+      pluginApi.currentPage.selection.length === 0
+        ? "Select at least one frame, group, or component in Figma and retry."
+        : "Keep the plugin window open and retry the command."
+  };
+}
+
 async function executeRuntimeCommand(
   pluginApi: PluginRuntimeHost,
   command: RuntimeCommand,
@@ -149,14 +183,29 @@ async function executeRuntimeCommand(
       };
     }
 
+    if (pluginApi.currentPage.selection.length === 0) {
+      return {
+        commandId: command.id,
+        details: buildCaptureDiagnostic(pluginApi),
+        error: "Capture requires a non-empty Figma selection.",
+        method: command.method
+      };
+    }
+
     return {
       commandId: command.id,
-      document: await buildCurrentSelectionCapture(pluginApi, options),
+      document: await buildCurrentSelectionCapture(pluginApi, {
+        ...options,
+        ...("profile" in command && command.profile
+          ? { profile: command.profile }
+          : {})
+      }),
       method: command.method
     };
   } catch (error) {
     return {
       commandId: command.id,
+      details: buildCaptureDiagnostic(pluginApi),
       error: toErrorMessage(error, "Plugin command failed."),
       method: command.method
     };

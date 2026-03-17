@@ -13,6 +13,7 @@ import {
   normalizeCompanionBaseUrl,
   type CommandCaptureResponse,
   type CommandStatusResponse,
+  type CaptureProfile,
   type CompanionDoctor,
   type CompanionHealth,
   type CompanionLogs,
@@ -26,6 +27,7 @@ export interface CompanionClient {
   getLogs(options?: { limit?: number; sessionId?: string }): Promise<CompanionLogs>;
   getStatus(): Promise<CompanionStatus>;
   requestCapture(options?: {
+    profile?: CaptureProfile;
     sessionId?: string;
   }): Promise<CommandCaptureResponse>;
   requestStatus(options?: {

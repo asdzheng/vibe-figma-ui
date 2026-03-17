@@ -1,6 +1,7 @@
 export { createFetchCompanionClient, type CompanionClient } from "./client.js";
 export { runCli, CLI_VERSION } from "./cli.js";
 export {
+  renderDesignDocumentSnapshotHtml,
   renderDesignDocumentSnapshot,
   type SnapshotRenderResult,
   type SnapshotRenderStats

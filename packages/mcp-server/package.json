@@ -1,6 +1,8 @@
 {
   "name": "@vibe-figma/mcp-server",
+  "private": true,
   "version": "0.7.0",
+  "description": "Archived V1 MCP package kept for historical reference only.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

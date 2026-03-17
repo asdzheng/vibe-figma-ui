@@ -66,6 +66,11 @@ export type RuntimePaint = {
   visible?: boolean;
 };
 
+export type RuntimeGridTrack = {
+  type: "FLEX" | "FIXED" | "HUG";
+  value?: number;
+};
+
 export type RuntimeEffect = {
   blendMode?: string;
   boundVariables?: Record<string, RuntimeVariableAlias | undefined>;
@@ -185,6 +190,18 @@ export type RuntimeSceneNode = {
   effects?: readonly RuntimeEffect[];
   fillStyleId?: string;
   fills?: readonly RuntimePaint[] | symbol;
+  gridChildHorizontalAlign?: "MIN" | "CENTER" | "MAX" | "AUTO";
+  gridChildVerticalAlign?: "MIN" | "CENTER" | "MAX" | "AUTO";
+  gridColumnAnchorIndex?: number;
+  gridColumnCount?: number;
+  gridColumnGap?: number;
+  gridColumnSizes?: readonly RuntimeGridTrack[];
+  gridColumnSpan?: number;
+  gridRowAnchorIndex?: number;
+  gridRowCount?: number;
+  gridRowGap?: number;
+  gridRowSizes?: readonly RuntimeGridTrack[];
+  gridRowSpan?: number;
   height?: number;
   id: string;
   itemSpacing?: number;
@@ -212,6 +229,14 @@ export type RuntimeSceneNode = {
   textAlignHorizontal?: "LEFT" | "CENTER" | "RIGHT" | "JUSTIFIED";
   textAlignVertical?: "TOP" | "CENTER" | "BOTTOM";
   textAutoResize?: "NONE" | "WIDTH_AND_HEIGHT" | "HEIGHT" | "TRUNCATE";
+  textSegments?: ReadonlyArray<{
+    characters: string;
+    end: number;
+    fillStyleId?: string;
+    fills?: readonly RuntimePaint[];
+    start: number;
+    textStyleId?: string;
+  }>;
   textStyleId?: string | symbol;
   topLeftRadius?: number;
   topRightRadius?: number;

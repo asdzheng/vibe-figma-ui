@@ -1,13 +1,19 @@
+import { readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { clearTimeout, setTimeout } from "node:timers";
 
-import type { DesignDocument } from "@vibe-figma/schema";
+import { designDocumentSchema, type DesignDocument } from "@vibe-figma/schema";
+import { z } from "zod";
 
 import {
+  companionLogEntrySchema,
   DEFAULT_COMMAND_TIMEOUT_MS,
   DEFAULT_LOG_LIMIT,
   MAX_LOG_ENTRIES,
   SESSION_STALE_AFTER_MS,
+  type CaptureProfile,
   type CompanionDoctor,
   type CompanionLogEntry,
   type CompanionSessionSummary,
@@ -17,6 +23,7 @@ import {
   type RuntimeCommandMethod,
   type RuntimeCommandResult,
   type RuntimeStatus,
+  runtimeStatusSchema,
   runtimeCommandSchema
 } from "./transport.js";
 
@@ -48,7 +55,26 @@ export type CompanionSessionManagerOptions = {
   commandTimeoutMs?: number;
   now?: () => Date;
   serverVersion: string;
+  stateFilePath?: string;
 };
+
+const persistedSessionSchema = z
+  .object({
+    connectedAt: z.string().datetime(),
+    id: z.string().min(1),
+    lastCapture: designDocumentSchema.nullable(),
+    lastSeenAt: z.string().datetime(),
+    lastStatus: runtimeStatusSchema.nullable(),
+    logs: z.array(companionLogEntrySchema),
+    pluginVersion: z.string().min(1)
+  })
+  .strict();
+
+const persistedStateSchema = z
+  .object({
+    sessions: z.array(persistedSessionSchema)
+  })
+  .strict();
 
 function createError(message: string): Error {
   return new Error(message);
@@ -60,12 +86,17 @@ export class CompanionSessionManager {
   private readonly serverVersion: string;
   private readonly serverLogs: CompanionLogEntry[] = [];
   private readonly sessions = new Map<string, SessionRecord>();
+  private readonly stateFilePath: string | undefined;
+  private lastPersistError: string | null = null;
+  private persistQueue: Promise<void> = Promise.resolve();
 
   public constructor(options: CompanionSessionManagerOptions) {
     this.commandTimeoutMs =
       options.commandTimeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
     this.now = options.now ?? (() => new Date());
     this.serverVersion = options.serverVersion;
+    this.stateFilePath = options.stateFilePath;
+    this.loadPersistedSessions();
   }
 
   public dispose(): void {
@@ -82,6 +113,10 @@ export class CompanionSessionManager {
         );
       }
     }
+  }
+
+  public async flushPersistence(): Promise<void> {
+    await this.persistQueue;
   }
 
   public registerSession(pluginVersion: string): string {
@@ -102,6 +137,7 @@ export class CompanionSessionManager {
     });
 
     this.appendServerLog("info", "Plugin session connected.", sessionId);
+    this.enqueuePersist();
 
     return sessionId;
   }
@@ -152,6 +188,7 @@ export class CompanionSessionManager {
         scope: "plugin-ui",
         sessionId
       });
+      this.enqueuePersist();
       return;
     }
 
@@ -160,6 +197,7 @@ export class CompanionSessionManager {
         ...event.payload,
         sessionId
       });
+      this.enqueuePersist();
       return;
     }
 
@@ -190,11 +228,13 @@ export class CompanionSessionManager {
     clearTimeout(pendingCommand.timer);
     session.pendingCommands.delete(event.payload.commandId);
     pendingCommand.resolve(event.payload);
+    this.enqueuePersist();
   }
 
   public async dispatchCommand(
     method: RuntimeCommandMethod,
     requestedSessionId?: string,
+    profile?: CaptureProfile,
     timeoutMs = this.commandTimeoutMs
   ): Promise<{
     result: RuntimeCommandResult;
@@ -203,7 +243,8 @@ export class CompanionSessionManager {
     const session = this.selectSession(requestedSessionId);
     const command = runtimeCommandSchema.parse({
       id: randomUUID(),
-      method
+      method,
+      ...(method === "capture" && profile ? { profile } : {})
     });
 
     this.appendServerLog("info", `Queued ${method} command.`, session.id);
@@ -258,6 +299,7 @@ export class CompanionSessionManager {
   public getDoctor(companionUrl: string): CompanionDoctor {
     const status = this.getStatus();
     const issues: string[] = [];
+    const activeSessions = status.sessions.filter((session) => session.isActive);
 
     if (status.sessions.length === 0) {
       issues.push(
@@ -269,9 +311,21 @@ export class CompanionSessionManager {
       );
     }
 
+    if (activeSessions.length > 1) {
+      issues.push(
+        "Multiple active plugin sessions are connected. Run `vibe-figma sessions` and pass `--session <id>` to target a specific window."
+      );
+    }
+
     if (!status.latestCaptureAvailable) {
       issues.push(
         "No capture has been returned yet. Run `vibe-figma capture` or `vibe-figma export-json` from another terminal after the plugin connects."
+      );
+    }
+
+    if (this.lastPersistError) {
+      issues.push(
+        `Companion state persistence failed: ${this.lastPersistError}`
       );
     }
 
@@ -413,5 +467,82 @@ export class CompanionSessionManager {
     }
 
     logs.splice(0, logs.length - MAX_LOG_ENTRIES);
+  }
+
+  private loadPersistedSessions(): void {
+    if (!this.stateFilePath) {
+      return;
+    }
+
+    try {
+      const raw = readFileSync(this.stateFilePath, "utf8");
+      const persisted = persistedStateSchema.parse(
+        JSON.parse(raw) as unknown
+      );
+
+      for (const session of persisted.sessions) {
+        this.sessions.set(session.id, {
+          commandQueue: [],
+          connectedAt: session.connectedAt,
+          id: session.id,
+          lastCapture: session.lastCapture,
+          lastSeenAt: session.lastSeenAt,
+          lastStatus: session.lastStatus,
+          logs: [...session.logs],
+          pendingCommands: new Map(),
+          pendingPolls: [],
+          pluginVersion: session.pluginVersion
+        });
+      }
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        return;
+      }
+
+      this.lastPersistError =
+        error instanceof Error ? error.message : "Unknown persistence load failure.";
+      this.appendServerLog(
+        "error",
+        `Failed to load persisted companion state: ${this.lastPersistError}`
+      );
+    }
+  }
+
+  private enqueuePersist(): void {
+    if (!this.stateFilePath) {
+      return;
+    }
+
+    const snapshot = {
+      sessions: [...this.sessions.values()].map((session) => ({
+        connectedAt: session.connectedAt,
+        id: session.id,
+        lastCapture: session.lastCapture,
+        lastSeenAt: session.lastSeenAt,
+        lastStatus: session.lastStatus,
+        logs: session.logs,
+        pluginVersion: session.pluginVersion
+      }))
+    };
+
+    this.persistQueue = this.persistQueue
+      .catch(() => undefined)
+      .then(async () => {
+        await mkdir(dirname(this.stateFilePath as string), { recursive: true });
+        await writeFile(
+          this.stateFilePath as string,
+          `${JSON.stringify(snapshot, null, 2)}\n`,
+          "utf8"
+        );
+        this.lastPersistError = null;
+      })
+      .catch((error) => {
+        this.lastPersistError =
+          error instanceof Error ? error.message : "Unknown persistence write failure.";
+        this.appendServerLog(
+          "error",
+          `Failed to persist companion state: ${this.lastPersistError}`
+        );
+      });
   }
 }
